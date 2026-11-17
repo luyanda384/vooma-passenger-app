@@ -16,7 +16,9 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { Button, Icon, Notice, Sheet, ui } from "../ui/components";
+import { Button, Icon, Notice } from "../ui/components";
+import { SignUpScreen } from "./SignUpScreen";
+import { SignInScreen } from "./SignInScreen";
 
 export function WelcomeScreen({
   returning,
@@ -37,9 +39,6 @@ export function WelcomeScreen({
   const [actions] = useState(() => new Animated.Value(0));
   const [interactive, setInteractive] = useState(false);
   const [account, setAccount] = useState<"Sign In" | "Sign Up" | null>(null);
-  const continueLabel = returning
-    ? "Continue to Vooma"
-    : "Explore passenger demo";
 
   useEffect(() => {
     let active = true;
@@ -87,6 +86,25 @@ export function WelcomeScreen({
     };
   }, [reduced, arrival, actions]);
 
+  if (account === "Sign Up") {
+    return (
+      <SignUpScreen
+        onBack={() => setAccount(null)}
+        onSignIn={() => setAccount("Sign In")}
+      />
+    );
+  }
+  if (account === "Sign In") {
+    return (
+      <SignInScreen
+        onBack={() => setAccount(null)}
+        onExplore={onContinue}
+        returning={returning}
+        reducedMotion={reduced !== false}
+      />
+    );
+  }
+
   return (
     <View style={s.root} testID="passenger-welcome">
       <StatusBar style="dark" />
@@ -118,7 +136,7 @@ export function WelcomeScreen({
           style={[
             s.car,
             {
-              top: height * (compact ? 0.45 : 0.48),
+              top: height * 0.6,
               left: Math.max(0, (width - 520) / 2),
               width: Math.min(width * 0.94, 470),
               height: Math.min(width * 0.4, 200),
@@ -203,6 +221,7 @@ export function WelcomeScreen({
               <Pressable
                 key={label}
                 accessibilityRole="button"
+                accessibilityLabel={label}
                 disabled={!interactive}
                 onPress={() => setAccount(label)}
                 style={({ pressed }) => [
@@ -221,17 +240,6 @@ export function WelcomeScreen({
                 </View>
               </Pressable>
             ))}
-            <Pressable
-              accessibilityRole="button"
-              disabled={!interactive}
-              onPress={onContinue}
-              style={s.link}
-            >
-              <Text style={s.linkText}>{continueLabel}</Text>
-            </Pressable>
-            <Text style={s.preview}>
-              Passenger preview · no real bookings or payments
-            </Text>
             {error !== "" && (
               <>
                 <Notice error>{error}</Notice>
@@ -241,25 +249,6 @@ export function WelcomeScreen({
           </Animated.View>
         </ScrollView>
       </SafeAreaView>
-      <Sheet
-        visible={account !== null}
-        title={account ?? "Passenger account"}
-        onClose={() => setAccount(null)}
-      >
-        <Text style={ui.h2}>Meet Vooma Passenger</Text>
-        <Text style={ui.body}>
-          Passenger accounts are not available in this preview. You can explore
-          the app without signing in. No real rides are booked and no payments
-          are taken.
-        </Text>
-        <Button
-          label={continueLabel}
-          onPress={() => {
-            setAccount(null);
-            onContinue();
-          }}
-        />
-      </Sheet>
     </View>
   );
 }
@@ -301,23 +290,4 @@ const s = StyleSheet.create({
     textAlign: "center",
   },
   arrow: { position: "absolute", right: 22 },
-  link: {
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 8,
-  },
-  linkText: {
-    color: "#203147",
-    fontSize: 16,
-    textDecorationLine: "underline",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  preview: {
-    color: "#203147",
-    fontSize: 11,
-    textAlign: "center",
-    lineHeight: 16,
-  },
 });
