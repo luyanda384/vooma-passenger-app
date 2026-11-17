@@ -11,6 +11,13 @@ import { AccessibilityInfo } from "react-native";
 import App from "../../App";
 import { STORAGE_KEY } from "../state/PassengerProvider";
 import { initialState } from "../domain/passenger";
+import { ApiError, passengerApi } from "../api/passenger";
+import { signInGoogle } from "../api/social";
+import { sessionStorage } from "../api/sessionStorage";
+const accountKey = `${STORAGE_KEY}.passenger-test`;
+const session = () => ({ accessToken: "vma_passenger_test", expiresAt: Date.now() + 3600000, passenger: { id: "passenger-test", name: "Lebo Passenger", email: "lebo@example.test", phone: "+27821234567", emailVerified: true as const, phoneVerified: false as const } });
+jest.mock("../api/social", () => ({ signInGoogle: jest.fn(), finishWebGoogle: jest.fn(async () => null), clearSocialSession: jest.fn(async () => {}) }));
+jest.mock("../api/sessionStorage", () => ({ sessionStorage: { read: jest.fn(async () => null), write: jest.fn(async () => {}), clear: jest.fn(async () => {}) } }));
 
 configure({ asyncUtilTimeout: 5000 });
 
@@ -40,6 +47,14 @@ jest.mock("expo-location", () => ({
 beforeEach(async () => {
   await AsyncStorage.clear();
   jest.clearAllMocks();
+  jest.mocked(sessionStorage.read).mockResolvedValue(null);
+  jest.mocked(sessionStorage.write).mockResolvedValue(undefined);
+  jest.spyOn(passengerApi, "login").mockImplementation(async () => session());
+  jest.spyOn(passengerApi, "verify").mockImplementation(async () => session());
+  jest.spyOn(passengerApi, "logout").mockResolvedValue({ revoked: true });
+  jest.spyOn(passengerApi, "current").mockImplementation(async () => session());
+  jest.spyOn(passengerApi, "signup").mockResolvedValue({ challengeId: "challenge", expiresAt: Date.now() + 300000, resendAt: Date.now() + 60000, delivery: "provider" });
+  jest.mocked(signInGoogle).mockRejectedValue(new Error("Google sign-in is not configured yet. Please use email sign-in."));
   jest
     .spyOn(AccessibilityInfo, "isReduceMotionEnabled")
     .mockResolvedValue(true);
@@ -61,7 +76,7 @@ it("opens the full Create Account screen from Sign Up and returns to welcome", a
   fireEvent.press(screen.getByRole("button", { name: "Back to welcome" }));
   expect(screen.getByRole("button", { name: "Sign Up" })).toBeTruthy();
 });
-it("validates the sign-up form and never stores passwords or creates a fake account", async () => {
+it("validates signup, verifies email and enters the authenticated account", async () => {
   render(<App />);
   fireEvent.press(await screen.findByRole("button", { name: "Sign Up" }));
   fireEvent.press(screen.getByRole("button", { name: "Create account" }));
@@ -89,22 +104,27 @@ it("validates the sign-up form and never stores passwords or creates a fake acco
     "sample-password-123",
   );
   fireEvent.press(screen.getByRole("button", { name: "Create account" }));
-  expect(screen.getByText(/no account has been created/)).toBeTruthy();
-  expect(screen.getByLabelText("Password").props.value).toBe("");
-  expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull();
+  await screen.findByText("Verify your email");
+  expect(screen.queryByText("Plan your ride")).toBeNull();
+  fireEvent.changeText(screen.getByLabelText("Verification code"), "123456");
+  fireEvent.press(screen.getByRole("button", { name: "Verify email" }));
+  await screen.findByText("Plan your ride");
+  expect(passengerApi.verify).toHaveBeenCalledWith("challenge", "123456", expect.any(AbortSignal));
+  expect(sessionStorage.write).toHaveBeenCalledWith("vma_passenger_test");
+  expect(JSON.stringify(await AsyncStorage.multiGet(await AsyncStorage.getAllKeys()))).not.toContain("sample-password-123");
 });
 it("opens sign-up policy information and routes the Sign in link to Sign In", async () => {
   render(<App />);
   fireEvent.press(await screen.findByRole("button", { name: "Sign Up" }));
   fireEvent.press(screen.getByRole("button", { name: "Privacy Policy." }));
   expect(
-    screen.getByText(/Details entered in this form remain in memory/),
+    screen.getByText(/Creating an account sends your name/),
   ).toBeTruthy();
   fireEvent.press(
     screen.getByRole("button", { name: "Back to Create Account" }),
   );
   fireEvent.press(screen.getByRole("button", { name: "Continue with Google" }));
-  expect(screen.getByText(/Google sign-up is not available yet/)).toBeTruthy();
+  expect(await screen.findByText(/Google sign-in is not configured yet/)).toBeTruthy();
   fireEvent.press(screen.getByRole("button", { name: "Sign in" }));
   expect(screen.getByText("Sign in to continue")).toBeTruthy();
   expect(screen.getByLabelText("Password").props.value).toBe("");
@@ -123,23 +143,17 @@ it("shows the city welcome screen for returning passengers before opening Home",
   expect(screen.queryByText(/Passenger preview/)).toBeNull();
   fireEvent.press(screen.getByRole("button", { name: "Sign In" }));
   submitPreviewSignIn();
-  fireEvent.press(screen.getByRole("button", { name: "Continue to Vooma" }));
   await screen.findByText("Plan your ride");
 });
-it("reports unavailable sign-in honestly and allows a separate demo without saving credentials", async () => {
+it("keeps API failures on sign-in without allowing an authentication bypass", async () => {
+  jest.mocked(passengerApi.login).mockRejectedValueOnce(new ApiError(503, "The sign-in service is unavailable. Please try again later."));
   render(<App />);
   fireEvent.press(await screen.findByRole("button", { name: "Sign In" }));
-  expect(screen.getByText("Sign in to continue")).toBeTruthy();
   submitPreviewSignIn();
-  expect(
-    screen.getByText(/Passenger sign-in is not available yet/),
-  ).toBeTruthy();
-  expect(screen.getByLabelText("Password").props.value).toBe("");
-  expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull();
-  fireEvent.press(
-    screen.getAllByRole("button", { name: "Explore passenger demo" }).at(-1)!,
-  );
-  await screen.findByText("Plan your ride");
+  expect(await screen.findByText(/The sign-in service is unavailable/)).toBeTruthy();
+  expect(screen.queryByText("Plan your ride")).toBeNull();
+  expect(screen.queryByText("Explore passenger demo")).toBeNull();
+  expect(sessionStorage.write).not.toHaveBeenCalled();
 });
 it("validates sign-in, toggles password visibility and clears fields when navigating back", async () => {
   render(<App />);
@@ -154,7 +168,7 @@ it("validates sign-in, toggles password visibility and clears fields when naviga
   fireEvent.press(screen.getByRole("button", { name: "Show password" }));
   expect(screen.getByLabelText("Password").props.secureTextEntry).toBe(false);
   fireEvent.press(screen.getByRole("button", { name: "Forgot password" }));
-  expect(screen.getByText(/No reset email has been sent/)).toBeTruthy();
+  expect(screen.getByText(/email has been sent/)).toBeTruthy();
   fireEvent.press(screen.getByRole("button", { name: "Back to Sign In" }));
   expect(screen.getByLabelText("Password").props.value).toBe("");
   fireEvent.changeText(
@@ -200,7 +214,6 @@ async function openApp() {
   render(<App />);
   fireEvent.press(await screen.findByRole("button", { name: "Sign In" }));
   submitPreviewSignIn();
-  fireEvent.press(await screen.findByText("Explore passenger demo"));
   await screen.findByText("Plan your ride");
 }
 function submitPreviewSignIn() {
@@ -226,7 +239,7 @@ it("books, completes, rates and persists a demo trip through the passenger UI", 
   fireEvent.press(screen.getByLabelText("Rate 5 stars"));
   expect(screen.getByText("Thanks for your feedback!")).toBeTruthy();
   await waitFor(async () => {
-    const state = JSON.parse((await AsyncStorage.getItem(STORAGE_KEY))!);
+    const state = JSON.parse((await AsyncStorage.getItem(accountKey))!);
     expect(state.rides[0].status).toBe("completed");
     expect(state.rides[0].rating).toBe(5);
   });
@@ -240,7 +253,7 @@ it("keeps a cancelled ride in history and allows a new ride", async () => {
   expect(screen.getByText("Plans change. That’s okay.")).toBeTruthy();
   await waitFor(async () =>
     expect(
-      JSON.parse((await AsyncStorage.getItem(STORAGE_KEY))!).rides[0].status,
+      JSON.parse((await AsyncStorage.getItem(accountKey))!).rides[0].status,
     ).toBe("cancelled"),
   );
 });
@@ -278,8 +291,43 @@ it("surfaces storage failures and retries the latest state", async () => {
   await screen.findByText(/could not be saved on this device/);
   fireEvent.press(screen.getByText("Retry saving"));
   await waitFor(async () =>
-    expect(JSON.parse((await AsyncStorage.getItem(STORAGE_KEY))!).name).toBe(
+    expect(JSON.parse((await AsyncStorage.getItem(accountKey))!).name).toBe(
       "Lebo",
     ),
   );
+});
+
+it("requires Google profile completion before allowing access to Home", async () => {
+  jest.mocked(signInGoogle).mockResolvedValue("google-token");
+  jest.spyOn(passengerApi, "social").mockResolvedValueOnce({ onboardingRequired: true, name: "Google Passenger", email: "google@example.test" }).mockResolvedValueOnce(session());
+  render(<App />);
+  fireEvent.press(await screen.findByRole("button", { name: "Sign In" }));
+  fireEvent.press(screen.getByRole("button", { name: "Continue with Google" }));
+  await screen.findByText("Complete your profile");
+  expect(screen.queryByText("Plan your ride")).toBeNull();
+  fireEvent.press(screen.getByRole("button", { name: "Complete account" }));
+  await screen.findByText("Enter your full name and a valid phone number.");
+  fireEvent.changeText(screen.getByLabelText("Phone number"), "0821234567");
+  fireEvent.press(screen.getByRole("button", { name: "Complete account" }));
+  await screen.findByText("Plan your ride");
+  expect(passengerApi.social).toHaveBeenLastCalledWith("google-token", { name: "Google Passenger", phone: "0821234567" }, undefined);
+});
+it("restores a valid native session and revokes it on sign-out", async () => {
+  jest.mocked(sessionStorage.read).mockResolvedValueOnce("saved-token");
+  render(<App />);
+  await screen.findByText("Plan your ride");
+  expect(passengerApi.current).toHaveBeenCalledWith("saved-token");
+  fireEvent.press(screen.getByLabelText("Profile"));
+  fireEvent.press(screen.getByRole("button", { name: "Sign out" }));
+  await screen.findByRole("button", { name: "Sign In" });
+  expect(passengerApi.logout).toHaveBeenCalledWith("saved-token");
+  expect(sessionStorage.clear).toHaveBeenCalled();
+});
+it("discards an expired saved session and requires sign-in", async () => {
+  jest.mocked(sessionStorage.read).mockResolvedValueOnce("expired-token");
+  jest.mocked(passengerApi.current).mockRejectedValueOnce(new ApiError(401, "expired"));
+  render(<App />);
+  await screen.findByRole("button", { name: "Sign In" });
+  expect(screen.queryByText("Plan your ride")).toBeNull();
+  expect(sessionStorage.clear).toHaveBeenCalled();
 });

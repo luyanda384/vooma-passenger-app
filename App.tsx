@@ -18,6 +18,7 @@ import { ProfileScreen } from "./src/features/ProfileScreen";
 import { RideDetail } from "./src/features/RideDetail";
 import { LaunchSplash } from "./src/features/LaunchSplash";
 import { WelcomeScreen } from "./src/features/WelcomeScreen";
+import { CompleteProfileScreen } from "./src/features/CompleteProfileScreen";
 import { PassengerProvider, usePassenger } from "./src/state/PassengerProvider";
 import { STORAGE_KEY } from "./src/state/PassengerProvider";
 import { AuthProvider, useAuth } from "./src/state/AuthProvider";
@@ -189,7 +190,13 @@ export default function App() {
   );
 }
 function AccountApp() {
-  const { session } = useAuth();
+  const { session, ready, startupError, retry, signOut, pending } = useAuth();
+  if (!ready) return <SafeAreaView style={styles.loading}><ActivityIndicator size="large" color={c.navy} /></SafeAreaView>;
+  if (startupError) return <SafeAreaView style={styles.loading}>
+    <Notice error>{startupError}</Notice><Button label="Retry sign-in" onPress={retry} />
+    <Button label="Return to welcome" secondary onPress={() => void signOut().catch(() => {})} />
+  </SafeAreaView>;
+  if (pending) return <CompleteProfileScreen />;
   return <PassengerProvider key={session?.passenger.id ?? "guest"} storageKey={session ? `${STORAGE_KEY}.${session.passenger.id}` : STORAGE_KEY}>
     {session ? <PassengerApp /> : <LaunchSplash><PassengerApp /></LaunchSplash>}
   </PassengerProvider>;

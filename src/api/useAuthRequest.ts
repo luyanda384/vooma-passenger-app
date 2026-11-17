@@ -6,7 +6,7 @@ export function useAuthRequest() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => () => { pending.current?.abort(); }, []);
-  async function run<T>(work: (signal: AbortSignal) => Promise<T>, success: (result: T) => void) {
+  async function run<T>(work: (signal: AbortSignal) => Promise<T>, success: (result: T) => void | Promise<void>) {
     if (pending.current) return;
     const controller = new AbortController();
     pending.current = controller;
@@ -14,7 +14,7 @@ export function useAuthRequest() {
     setError("");
     try {
       const result = await work(controller.signal);
-      if (!controller.signal.aborted) success(result);
+      if (!controller.signal.aborted) await success(result);
     } catch (failure) {
       if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : "Please try again.");
     } finally {

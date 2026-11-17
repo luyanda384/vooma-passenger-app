@@ -1,35 +1,21 @@
 # Vooma Passenger
 
-Passenger app for Android, iOS and web, built with Expo 58, React Native 0.88
-and TypeScript. Uses the Vooma logo and colour palette from the sibling driver
-app. The driver, admin and API repositories are unchanged.
+Expo passenger app for Android, iOS and web. Passenger authentication is connected
+to the sibling Vooma API: email signup, six-digit email verification, password
+signin, Google signin through Supabase, profile completion and logout.
 
-Launch uses the driver's white splash, navy/orange Vooma mark and wordmark,
-lower-screen placement, and three-second reveal/pulse followed by a fade.
-Reduced-motion preferences skip the animation. The Android native splash uses
-the same `entry-splash.png`; iOS starts white, matching the driver configuration.
-Native splash changes require a new development or release build; Expo Go's
-own launch screen is controlled by Expo Go. The in-app splash also runs on web.
-The second launch screen reuses the driver's city background, animated car,
-HELLO heading and rounded Sign In / Sign Up buttons. Both screens appear on
-every cold launch, including when a local profile already exists. Sign Up opens
-the Create Account form with Google, name, email, phone, password and password
-confirmation, matching the supplied design. The form validates input and supports
-password visibility, back navigation and policy panels. Account creation and
-Google authentication remain unavailable: the form never transmits or persists
-registration details, and passwords are cleared on a valid submission.
-Sign In mirrors the driver app's Welcome back screen: the city and car shift
-up as the rounded email/password panel slides in, with password visibility,
-Continue, Forgot password and back navigation. Passenger authentication and
-password reset are not connected; valid form submission explains availability
-and offers a separate Explore passenger demo / Continue to Vooma action. Login
-details are never sent or saved. The welcome screen itself shows only Sign In
-and Sign Up.
+Google users finish their name and phone before entering Home. An existing
+verified email account can sign in with Google without creating a duplicate.
+Vooma passenger sessions are separate from driver/admin credentials, last one
+hour, and are saved in native secure storage. Web sessions stay in memory and
+end on reload. Phone numbers are recorded but not verified.
 
-This first version is an **explicit local demo**. It does not create passenger
-accounts, contact drivers, book real rides or process payments. The current
-`vooma-api` implements driver onboarding and admin review, not passenger booking
-or dispatch. The app never calls driver authentication endpoints as a passenger.
+Booking, dispatch, fares and payments remain an explicitly labelled local demo.
+Authentication errors never grant demo access. Passenger demo history is scoped
+to the authenticated account.
+
+See [authentication setup](docs/AUTH_SETUP.md) for environment variables, local
+email testing, Supabase Google configuration and native callback setup.
 
 ## Run
 
@@ -74,11 +60,13 @@ displayed in South African Standard Time.
 
 ## Storage
 
-AsyncStorage key: `vooma.passenger.demo.v1`. Stores the demo display name,
-favourite place IDs, trips (including coordinates), and ratings on this device.
-No credentials are required or stored. Invalid saved data is not silently
-overwritten: the user can retry or explicitly reset it. Failed writes show a
-retry action. **Profile → Privacy & local data** provides the reset flow.
+Native session token: Expo SecureStore `vooma.passenger.session.v1`. No passwords
+or session tokens are stored in AsyncStorage. Web OAuth stores only short-lived
+PKCE verifiers in sessionStorage so a full-page Google redirect can complete.
+
+Demo history: AsyncStorage `vooma.passenger.demo.v1.<passenger-id>`. Includes
+saved places, demo trips, coordinates, ratings and a local display name.
+Corrupt data requires an explicit reset; failed writes expose a retry action.
 
 ## Validation
 
