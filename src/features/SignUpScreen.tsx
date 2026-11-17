@@ -14,6 +14,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { passengerApi, type Challenge } from "../api/passenger";
+import { useAuthRequest } from "../api/useAuthRequest";
+import { VerifyEmailScreen } from "./VerifyEmailScreen";
 import Svg, {
   Defs,
   G,
@@ -118,6 +121,8 @@ export function SignUpScreen({
   const [errors, setErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [visible, setVisible] = useState({ password: false, confirm: false });
   const [message, setMessage] = useState("");
+  const [challenge, setChallenge] = useState<Challenge | null>(null);
+  const request = useAuthRequest();
   const [policy, setPolicy] = useState<
     "Terms & Conditions" | "Privacy Policy" | null
   >(null);
@@ -138,6 +143,7 @@ export function SignUpScreen({
     setForm((previous) => ({ ...previous, [key]: value }));
     setErrors((previous) => ({ ...previous, [key]: undefined }));
     setMessage("");
+    request.clearError();
   }
   function submit() {
     const next: Partial<Record<FieldName, string>> = {};
@@ -162,11 +168,11 @@ export function SignUpScreen({
       fields.current[first]?.focus();
       return;
     }
-    setMessage(
-      "Account creation is not available yet. Your details have not been sent or saved, and no account has been created.",
-    );
-    setForm((previous) => ({ ...previous, password: "", confirm: "" }));
-    scroll.current?.scrollToEnd({ animated: true });
+    void request.run(signal => passengerApi.signup({ name: form.name, email: form.email.trim(), phone: form.phone, password: form.password }, signal), next => {
+      setForm(previous => ({ ...previous, password: "", confirm: "" }));
+      setVisible({ password: false, confirm: false });
+      setChallenge(next);
+    });
   }
   function field(
     key: FieldName,
@@ -186,7 +192,7 @@ export function SignUpScreen({
             accessibilityLabel={label}
             accessibilityHint={
               password
-                ? "Use 12 to 128 characters. Passwords are not stored in this preview."
+                ? "Use 12 to 128 characters."
                 : undefined
             }
             placeholder={label}
@@ -242,6 +248,7 @@ export function SignUpScreen({
     );
   }
 
+  if (challenge) return <VerifyEmailScreen initial={challenge} email={form.email.trim()} onBack={() => setChallenge(null)} onSignIn={onSignIn} />;
   return (
     <View style={s.root} testID="passenger-signup">
       <StatusBar style="dark" />
@@ -323,16 +330,19 @@ export function SignUpScreen({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Create account"
+              disabled={request.busy}
+              accessibilityState={{ disabled: request.busy, busy: request.busy }}
               onPress={submit}
               style={({ pressed }) => [s.submit, pressed && { opacity: 0.8 }]}
             >
-              <Text style={s.submitText}>Create account</Text>
+              <Text style={s.submitText}>{request.busy ? "Creating account…" : "Create account"}</Text>
             </Pressable>
             {message !== "" && (
               <View style={s.message}>
                 <Notice>{message}</Notice>
               </View>
             )}
+            {request.error !== "" && <View style={s.message}><Notice error>{request.error}</Notice></View>}
             <View style={s.signInRow}>
               <Text style={s.footerText}>Already have an account?</Text>
               <Pressable
@@ -376,8 +386,8 @@ export function SignUpScreen({
       >
         <Text style={ui.body}>
           {policy === "Terms & Conditions"
-            ? "Passenger account registration is not enabled yet. Vooma’s passenger terms will be available for review before you can create an account."
-            : "Details entered in this form remain in memory while it is open. They are not sent to a server or saved on this device. Leaving the form clears its entries. The passenger service’s privacy policy will be available before registration is enabled."}
+            ? "This development build supports passenger account testing. Rides and payments are demonstrations. Vooma’s full passenger terms have not yet been published here."
+            : "Creating an account sends your name, email, phone number and password to Vooma API. Profile details are encrypted and passwords are hashed on the server. Sign-in credentials are held in memory on this device. Demo trip history is stored locally for your account. This describes the development build; Vooma’s full privacy policy has not yet been published here."}
         </Text>
         <Button
           label="Back to Create Account"

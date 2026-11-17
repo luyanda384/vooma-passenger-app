@@ -19,6 +19,8 @@ import { RideDetail } from "./src/features/RideDetail";
 import { LaunchSplash } from "./src/features/LaunchSplash";
 import { WelcomeScreen } from "./src/features/WelcomeScreen";
 import { PassengerProvider, usePassenger } from "./src/state/PassengerProvider";
+import { STORAGE_KEY } from "./src/state/PassengerProvider";
+import { AuthProvider, useAuth } from "./src/state/AuthProvider";
 import {
   Button,
   c,
@@ -48,11 +50,11 @@ const tabs: { id: Tab; label: string; icon: IconName; activeIcon: IconName }[] =
     },
   ];
 function PassengerApp() {
-  const { state, ready, error, update, retry, reset } = usePassenger();
+  const { ready, error, retry, reset } = usePassenger();
+  const { session } = useAuth();
   const [tab, setTab] = useState<Tab>("home");
   const [rideId, setRideId] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
-  const [entered, setEntered] = useState(false);
   const wide = useWindowDimensions().width >= 850;
   if (!ready)
     return (
@@ -95,18 +97,11 @@ function PassengerApp() {
         )}
       </SafeAreaView>
     );
-  if (!entered || !state.welcomed)
+  if (!session)
     return (
       <WelcomeScreen
-        returning={state.welcomed}
         error={error}
         onRetry={retry}
-        onContinue={() => {
-          setTab("home");
-          setRideId(null);
-          setEntered(true);
-          update((previous) => ({ ...previous, welcomed: true }));
-        }}
       />
     );
   const navigation = (
@@ -189,13 +184,15 @@ function PassengerApp() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <PassengerProvider>
-        <LaunchSplash>
-          <PassengerApp />
-        </LaunchSplash>
-      </PassengerProvider>
+      <AuthProvider><AccountApp /></AuthProvider>
     </SafeAreaProvider>
   );
+}
+function AccountApp() {
+  const { session } = useAuth();
+  return <PassengerProvider key={session?.passenger.id ?? "guest"} storageKey={session ? `${STORAGE_KEY}.${session.passenger.id}` : STORAGE_KEY}>
+    {session ? <PassengerApp /> : <LaunchSplash><PassengerApp /></LaunchSplash>}
+  </PassengerProvider>;
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.tint },

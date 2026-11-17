@@ -21,13 +21,9 @@ import { SignUpScreen } from "./SignUpScreen";
 import { SignInScreen } from "./SignInScreen";
 
 export function WelcomeScreen({
-  returning,
-  onContinue,
   error,
   onRetry,
 }: {
-  returning: boolean;
-  onContinue: () => void;
   error: string;
   onRetry: () => void;
 }) {
@@ -98,8 +94,6 @@ export function WelcomeScreen({
     return (
       <SignInScreen
         onBack={() => setAccount(null)}
-        onExplore={onContinue}
-        returning={returning}
         reducedMotion={reduced !== false}
       />
     );

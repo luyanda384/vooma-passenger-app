@@ -21,16 +21,15 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { LineIcon } from "../ui/LineIcon";
 import { Button, Sheet, ui } from "../ui/components";
+import { passengerApi } from "../api/passenger";
+import { useAuthRequest } from "../api/useAuthRequest";
+import { useAuth } from "../state/AuthProvider";
 
 export function SignInScreen({
   onBack,
-  onExplore,
-  returning,
   reducedMotion,
 }: {
   onBack: () => void;
-  onExplore: () => void;
-  returning: boolean;
   reducedMotion: boolean;
 }) {
   const { width, height, fontScale } = useWindowDimensions();
@@ -41,7 +40,8 @@ export function SignInScreen({
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
   const [attempted, setAttempted] = useState(false);
-  const [unavailable, setUnavailable] = useState(false);
+  const { accept } = useAuth();
+  const request = useAuthRequest();
   const [recovery, setRecovery] = useState(false);
   const passwordInput = useRef<ComponentRef<typeof TextInput>>(null);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
@@ -67,13 +67,15 @@ export function SignInScreen({
   function submit() {
     setAttempted(true);
     if (!validEmail || !password.trim()) {
-      setUnavailable(false);
+      request.clearError();
       return;
     }
     setAttempted(false);
-    setPassword("");
     setVisible(false);
-    setUnavailable(true);
+    void request.run(signal => passengerApi.login(email.trim(), password, signal), session => {
+      setPassword("");
+      accept(session);
+    });
   }
 
   return (
@@ -144,7 +146,7 @@ export function SignInScreen({
               { minHeight: Math.max(height - insets.top - insets.bottom, 580) },
             ]}
             onContentSizeChange={() => {
-              if (unavailable) scroll.current?.scrollToEnd({ animated: true });
+              if (request.error) scroll.current?.scrollToEnd({ animated: true });
             }}
           >
             <View style={s.topBar}>
@@ -202,7 +204,7 @@ export function SignInScreen({
                   value={email}
                   onChangeText={(value) => {
                     setEmail(value);
-                    setUnavailable(false);
+                    request.clearError();
                   }}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -231,7 +233,7 @@ export function SignInScreen({
                   maxLength={128}
                   onChangeText={(value) => {
                     setPassword(value);
-                    setUnavailable(false);
+                    request.clearError();
                   }}
                   secureTextEntry={!visible}
                   autoCapitalize="none"
@@ -264,13 +266,15 @@ export function SignInScreen({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Continue"
+                disabled={request.busy}
+                accessibilityState={{ disabled: request.busy, busy: request.busy }}
                 onPress={submit}
                 style={({ pressed }) => [
                   s.button,
                   pressed && { opacity: 0.78 },
                 ]}
               >
-                <Text style={s.buttonText}>Continue</Text>
+                <Text style={s.buttonText}>{request.busy ? "Signing in…" : "Continue"}</Text>
                 <View style={s.arrow}>
                   <LineIcon name="arrow-right" size={28} color="#FF7A00" />
                 </View>
@@ -288,24 +292,11 @@ export function SignInScreen({
               >
                 <Text style={s.linkText}>Forgot password</Text>
               </Pressable>
-              {unavailable && (
+              {request.error !== "" && (
                 <View style={s.boundary}>
                   <Text accessibilityRole="alert" style={s.boundaryText}>
-                    Passenger sign-in is not available yet. Your details have
-                    not been sent or saved. You can explore the app without
-                    signing in.
+                    {request.error}
                   </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={onExplore}
-                    style={s.link}
-                  >
-                    <Text style={s.linkText}>
-                      {returning
-                        ? "Continue to Vooma"
-                        : "Explore passenger demo"}
-                    </Text>
-                  </Pressable>
                 </View>
               )}
             </Animated.View>

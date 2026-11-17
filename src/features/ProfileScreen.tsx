@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { usePassenger } from "../state/PassengerProvider";
+import { useAuth } from "../state/AuthProvider";
 import {
   Button,
   c,
@@ -14,6 +15,9 @@ import {
 type Panel = "profile" | "payments" | "privacy" | "help" | "reset" | null;
 export function ProfileScreen() {
   const { state, update, reset } = usePassenger();
+  const { session, signOut } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState("");
   const [panel, setPanel] = useState<Panel>(null);
   const [name, setName] = useState(state.name);
   const [message, setMessage] = useState("");
@@ -61,12 +65,13 @@ export function ProfileScreen() {
         <View style={ui.row}>
           <View style={[ui.emptyIcon, { backgroundColor: c.white }]}>
             <Text style={{ color: c.navy, fontSize: 30, fontWeight: "700" }}>
-              {state.name ? state.name[0].toUpperCase() : "V"}
+              {session?.passenger.name[0].toUpperCase() ?? "V"}
             </Text>
           </View>
           <View style={{ flex: 1, gap: 6 }}>
-            <Text style={ui.h2}>{state.name || "Vooma explorer"}</Text>
-            <Text style={ui.body}>Passenger demo profile</Text>
+            <Text style={ui.h2}>{session?.passenger.name}</Text>
+            <Text style={ui.body}>{session?.passenger.email}</Text>
+            <Text style={ui.small}>{session?.passenger.phone} · Phone not verified</Text>
           </View>
           <Icon name="sparkles-outline" size={26} />
         </View>
@@ -97,10 +102,18 @@ export function ProfileScreen() {
         ))}
       </View>
       <Notice>
-        This is a local demo profile, not a registered passenger account.
-        Sign-in will be available after passenger authentication is added to
-        Vooma’s API.
+        You are signed in to your passenger account. Rides and payments are
+        still demos. You will need to sign in again after restarting the app
+        or when your session expires.
       </Notice>
+      {signOutError !== "" && <Notice error>{signOutError}</Notice>}
+      <Button label={signingOut ? "Signing out…" : "Sign out"} secondary disabled={signingOut} onPress={async () => {
+        if (signingOut) return;
+        setSigningOut(true);
+        setSignOutError("");
+        try { await signOut(); }
+        catch { setSignOutError("Could not sign out. Check your connection and try again."); setSigningOut(false); }
+      }} />
       <Text style={[ui.small, { textAlign: "center" }]}>
         Vooma Passenger · Version 0.1.0{"\n"}Made for the way you move.
       </Text>
@@ -110,7 +123,7 @@ export function ProfileScreen() {
         onClose={() => setPanel(null)}
       >
         <Text style={ui.body}>
-          What should we call you? Use a sample name while exploring.
+          Set a local demo display name. This does not change your registered account details.
         </Text>
         <Text style={ui.label}>DISPLAY NAME</Text>
         <TextInput
@@ -197,7 +210,7 @@ export function ProfileScreen() {
         </Text>
         <Text style={ui.h3}>What’s still being connected?</Text>
         <Text style={ui.body}>
-          Passenger accounts, live address search, road routing, driver
+          Live address search, road routing, driver
           dispatch, actual fares, contact tools and payments. Support messaging
           is also unavailable in this version.
         </Text>
