@@ -23,7 +23,7 @@ type Context = {
   retry: () => void;
 };
 const PassengerContext = createContext<Context | null>(null);
-export function PassengerProvider({ children }: { children: ReactNode }) {
+export function PassengerProvider({ children, storageKey = STORAGE_KEY }: { children: ReactNode; storageKey?: string }) {
   const [state, setState] = useState<PassengerState>(initialState);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
@@ -34,7 +34,7 @@ export function PassengerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     mounted.current = true;
     const version = ++readVersion.current;
-    AsyncStorage.getItem(STORAGE_KEY)
+    AsyncStorage.getItem(storageKey)
       .then((raw) => {
         const restored = parseState(raw);
         if (mounted.current && version === readVersion.current) {
@@ -53,10 +53,10 @@ export function PassengerProvider({ children }: { children: ReactNode }) {
       mounted.current = false;
       readVersion.current++;
     };
-  }, []);
+  }, [storageKey]);
   function persist(next: PassengerState) {
     writes.current = writes.current
-      .then(() => AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)))
+      .then(() => AsyncStorage.setItem(storageKey, JSON.stringify(next)))
       .then(() => {
         if (mounted.current) setError("");
       })
@@ -88,7 +88,7 @@ export function PassengerProvider({ children }: { children: ReactNode }) {
       return;
     }
     const version = ++readVersion.current;
-    AsyncStorage.getItem(STORAGE_KEY)
+    AsyncStorage.getItem(storageKey)
       .then((raw) => {
         const next = parseState(raw);
         if (mounted.current && version === readVersion.current) {

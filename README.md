@@ -12,9 +12,19 @@ Native splash changes require a new development or release build; Expo Go's
 own launch screen is controlled by Expo Go. The in-app splash also runs on web.
 The second launch screen reuses the driver's city background, animated car,
 HELLO heading and rounded Sign In / Sign Up buttons. Both screens appear on
-every cold launch, including when a local profile already exists. Account
-buttons explain preview availability; Explore passenger demo / Continue to
-Vooma opens the passenger app without creating an account.
+every cold launch, including when a local profile already exists. Sign Up opens
+the Create Account form with Google, name, email, phone, password and password
+confirmation, matching the supplied design. The form validates input and supports
+password visibility, back navigation and policy panels. Account creation and
+Google authentication remain unavailable: the form never transmits or persists
+registration details, and passwords are cleared on a valid submission.
+Sign In mirrors the driver app's Welcome back screen: the city and car shift
+up as the rounded email/password panel slides in, with password visibility,
+Continue, Forgot password and back navigation. Passenger authentication and
+password reset are not connected; valid form submission explains availability
+and offers a separate Explore passenger demo / Continue to Vooma action. Login
+details are never sent or saved. The welcome screen itself shows only Sign In
+and Sign Up.
 
 This first version is an **explicit local demo**. It does not create passenger
 accounts, contact drivers, book real rides or process payments. The current
