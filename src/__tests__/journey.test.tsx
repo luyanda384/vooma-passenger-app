@@ -89,9 +89,20 @@ it("validates the sign-up form and never stores passwords or creates a fake acco
     "sample-password-123",
   );
   fireEvent.press(screen.getByRole("button", { name: "Create account" }));
+<<<<<<< Updated upstream
   expect(screen.getByText(/no account has been created/)).toBeTruthy();
   expect(screen.getByLabelText("Password").props.value).toBe("");
   expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull();
+=======
+  await screen.findByText("Verify your email");
+  expect(screen.queryByText("Where are you going today?")).toBeNull();
+  fireEvent.changeText(screen.getByLabelText("Verification code"), "123456");
+  fireEvent.press(screen.getByRole("button", { name: "Verify email" }));
+  await screen.findByText("Where are you going today?");
+  expect(passengerApi.verify).toHaveBeenCalledWith("challenge", "123456", expect.any(AbortSignal));
+  expect(sessionStorage.write).toHaveBeenCalledWith("vma_passenger_test");
+  expect(JSON.stringify(await AsyncStorage.multiGet(await AsyncStorage.getAllKeys()))).not.toContain("sample-password-123");
+>>>>>>> Stashed changes
 });
 it("opens sign-up policy information and routes the Sign in link to Sign In", async () => {
   render(<App />);
@@ -118,19 +129,24 @@ it("shows the city welcome screen for returning passengers before opening Home",
   await screen.findByRole("button", { name: "Sign In" });
   expect(screen.getByText("HELLO")).toBeTruthy();
   expect(screen.getByText("Your ride starts here")).toBeTruthy();
-  expect(screen.queryByText("Plan your ride")).toBeNull();
+  expect(screen.queryByText("Where are you going today?")).toBeNull();
   expect(screen.queryByText("Continue to Vooma")).toBeNull();
   expect(screen.queryByText(/Passenger preview/)).toBeNull();
   fireEvent.press(screen.getByRole("button", { name: "Sign In" }));
   submitPreviewSignIn();
+<<<<<<< Updated upstream
   fireEvent.press(screen.getByRole("button", { name: "Continue to Vooma" }));
   await screen.findByText("Plan your ride");
+=======
+  await screen.findByText("Where are you going today?");
+>>>>>>> Stashed changes
 });
 it("reports unavailable sign-in honestly and allows a separate demo without saving credentials", async () => {
   render(<App />);
   fireEvent.press(await screen.findByRole("button", { name: "Sign In" }));
   expect(screen.getByText("Sign in to continue")).toBeTruthy();
   submitPreviewSignIn();
+<<<<<<< Updated upstream
   expect(
     screen.getByText(/Passenger sign-in is not available yet/),
   ).toBeTruthy();
@@ -140,6 +156,12 @@ it("reports unavailable sign-in honestly and allows a separate demo without savi
     screen.getAllByRole("button", { name: "Explore passenger demo" }).at(-1)!,
   );
   await screen.findByText("Plan your ride");
+=======
+  expect(await screen.findByText(/The sign-in service is unavailable/)).toBeTruthy();
+  expect(screen.queryByText("Where are you going today?")).toBeNull();
+  expect(screen.queryByText("Explore passenger demo")).toBeNull();
+  expect(sessionStorage.write).not.toHaveBeenCalled();
+>>>>>>> Stashed changes
 });
 it("validates sign-in, toggles password visibility and clears fields when navigating back", async () => {
   render(<App />);
@@ -200,8 +222,12 @@ async function openApp() {
   render(<App />);
   fireEvent.press(await screen.findByRole("button", { name: "Sign In" }));
   submitPreviewSignIn();
+<<<<<<< Updated upstream
   fireEvent.press(await screen.findByText("Explore passenger demo"));
   await screen.findByText("Plan your ride");
+=======
+  await screen.findByText("Where are you going today?");
+>>>>>>> Stashed changes
 }
 function submitPreviewSignIn() {
   fireEvent.changeText(
@@ -216,7 +242,8 @@ function submitPreviewSignIn() {
 }
 it("books, completes, rates and persists a demo trip through the passenger UI", async () => {
   await openApp();
-  fireEvent.press(screen.getByLabelText("Go to Rosebank Mall"));
+  fireEvent.press(screen.getByRole("button", { name: "Where to?" }));
+  fireEvent.press(screen.getByLabelText("Select Rosebank Mall"));
   fireEvent.press(screen.getByText(/Request demo ride/));
   fireEvent.press(await screen.findByText("Simulate driver match"));
   fireEvent.press(screen.getByText("Simulate driver arrival"));
@@ -233,7 +260,8 @@ it("books, completes, rates and persists a demo trip through the passenger UI", 
 });
 it("keeps a cancelled ride in history and allows a new ride", async () => {
   await openApp();
-  fireEvent.press(screen.getByLabelText("Go to Rosebank Mall"));
+  fireEvent.press(screen.getByRole("button", { name: "Where to?" }));
+  fireEvent.press(screen.getByLabelText("Select Rosebank Mall"));
   fireEvent.press(screen.getByText(/Request demo ride/));
   fireEvent.press(await screen.findByText("Cancel demo ride"));
   fireEvent.press(screen.getByText("Yes, cancel demo ride"));
@@ -283,3 +311,41 @@ it("surfaces storage failures and retries the latest state", async () => {
     ),
   );
 });
+<<<<<<< Updated upstream
+=======
+
+it("requires Google profile completion before allowing access to Home", async () => {
+  jest.mocked(signInGoogle).mockResolvedValue("google-token");
+  jest.spyOn(passengerApi, "social").mockResolvedValueOnce({ onboardingRequired: true, name: "Google Passenger", email: "google@example.test" }).mockResolvedValueOnce(session());
+  render(<App />);
+  fireEvent.press(await screen.findByRole("button", { name: "Sign In" }));
+  fireEvent.press(screen.getByRole("button", { name: "Continue with Google" }));
+  await screen.findByText("Complete your profile");
+  expect(screen.queryByText("Where are you going today?")).toBeNull();
+  fireEvent.press(screen.getByRole("button", { name: "Complete account" }));
+  await screen.findByText("Enter your full name and a valid phone number.");
+  fireEvent.changeText(screen.getByLabelText("Phone number"), "0821234567");
+  fireEvent.press(screen.getByRole("button", { name: "Complete account" }));
+  await screen.findByText("Where are you going today?");
+  expect(passengerApi.social).toHaveBeenLastCalledWith("google-token", { name: "Google Passenger", phone: "0821234567" }, undefined);
+});
+it("restores a valid native session and revokes it on sign-out", async () => {
+  jest.mocked(sessionStorage.read).mockResolvedValueOnce("saved-token");
+  render(<App />);
+  await screen.findByText("Where are you going today?");
+  expect(passengerApi.current).toHaveBeenCalledWith("saved-token");
+  fireEvent.press(screen.getByLabelText("Profile"));
+  fireEvent.press(screen.getByRole("button", { name: "Sign out" }));
+  await screen.findByRole("button", { name: "Sign In" });
+  expect(passengerApi.logout).toHaveBeenCalledWith("saved-token");
+  expect(sessionStorage.clear).toHaveBeenCalled();
+});
+it("discards an expired saved session and requires sign-in", async () => {
+  jest.mocked(sessionStorage.read).mockResolvedValueOnce("expired-token");
+  jest.mocked(passengerApi.current).mockRejectedValueOnce(new ApiError(401, "expired"));
+  render(<App />);
+  await screen.findByRole("button", { name: "Sign In" });
+  expect(screen.queryByText("Where are you going today?")).toBeNull();
+  expect(sessionStorage.clear).toHaveBeenCalled();
+});
+>>>>>>> Stashed changes
