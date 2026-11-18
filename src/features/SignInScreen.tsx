@@ -40,7 +40,7 @@ export function SignInScreen({
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
   const [attempted, setAttempted] = useState(false);
-  const { accept } = useAuth();
+  const { accept, google } = useAuth();
   const request = useAuthRequest();
   const [recovery, setRecovery] = useState(false);
   const passwordInput = useRef<ComponentRef<typeof TextInput>>(null);
@@ -72,9 +72,9 @@ export function SignInScreen({
     }
     setAttempted(false);
     setVisible(false);
-    void request.run(signal => passengerApi.login(email.trim(), password, signal), session => {
+    void request.run(signal => passengerApi.login(email.trim(), password, signal), async session => {
       setPassword("");
-      accept(session);
+      await accept(session);
     });
   }
 
@@ -195,6 +195,7 @@ export function SignInScreen({
                 },
               ]}
             >
+              <Button label="Continue with Google" secondary disabled={request.busy} onPress={() => void request.run(google, () => {})} />
               <View style={s.field}>
                 <LineIcon name="mail" color="#203147" />
                 <TextInput

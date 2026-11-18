@@ -22,6 +22,8 @@ const config: ExpoConfig = {
     ],
   },
   plugins: [
+    "expo-web-browser",
+    "expo-secure-store",
     [
       "expo-splash-screen",
       {

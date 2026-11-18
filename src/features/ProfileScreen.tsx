@@ -103,8 +103,8 @@ export function ProfileScreen() {
       </View>
       <Notice>
         You are signed in to your passenger account. Rides and payments are
-        still demos. You will need to sign in again after restarting the app
-        or when your session expires.
+        still demos. Mobile sessions are saved securely until they expire.
+        Web sessions end when you reload. Sessions last one hour.
       </Notice>
       {signOutError !== "" && <Notice error>{signOutError}</Notice>}
       <Button label={signingOut ? "Signing out…" : "Sign out"} secondary disabled={signingOut} onPress={async () => {

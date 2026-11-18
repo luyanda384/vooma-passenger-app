@@ -17,6 +17,7 @@ import { StatusBar } from "expo-status-bar";
 import { passengerApi, type Challenge } from "../api/passenger";
 import { useAuthRequest } from "../api/useAuthRequest";
 import { VerifyEmailScreen } from "./VerifyEmailScreen";
+import { useAuth } from "../state/AuthProvider";
 import Svg, {
   Defs,
   G,
@@ -92,7 +93,7 @@ function AccountBackground() {
         <Defs>
           <LinearGradient id="account-sky" x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor="#F5F9FF" />
-            <Stop offset=".55" stopColor="#EDF5FF" />
+            <Stop offset="0.55" stopColor="#EDF5FF" />
             <Stop offset="1" stopColor="#E7F1FE" />
           </LinearGradient>
           <LinearGradient id="account-city" x1="0" y1="0" x2="0" y2="1">
@@ -123,6 +124,7 @@ export function SignUpScreen({
   const [message, setMessage] = useState("");
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const request = useAuthRequest();
+  const { google } = useAuth();
   const [policy, setPolicy] = useState<
     "Terms & Conditions" | "Privacy Policy" | null
   >(null);
@@ -284,12 +286,9 @@ export function SignUpScreen({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Continue with Google"
-              onPress={() => {
-                setMessage(
-                  "Google sign-up is not available yet. No Google account has been connected.",
-                );
-                scroll.current?.scrollToEnd({ animated: true });
-              }}
+              disabled={request.busy}
+              accessibilityState={{ disabled: request.busy, busy: request.busy }}
+              onPress={() => void request.run(google, () => {})}
               style={({ pressed }) => [s.google, pressed && { opacity: 0.7 }]}
             >
               <GoogleMark />
@@ -387,7 +386,7 @@ export function SignUpScreen({
         <Text style={ui.body}>
           {policy === "Terms & Conditions"
             ? "This development build supports passenger account testing. Rides and payments are demonstrations. Vooma’s full passenger terms have not yet been published here."
-            : "Creating an account sends your name, email, phone number and password to Vooma API. Profile details are encrypted and passwords are hashed on the server. Sign-in credentials are held in memory on this device. Demo trip history is stored locally for your account. This describes the development build; Vooma’s full privacy policy has not yet been published here."}
+            : "Creating an account sends your name, email, phone number and password to Vooma API. Profile details are encrypted and passwords are hashed on the server. Mobile session tokens are saved in secure device storage; web sessions stay in memory. Google sign-in uses Supabase and sends a verified identity token to Vooma API. Demo trip history is stored locally for your account. This describes the development build; Vooma’s full privacy policy has not yet been published here."}
         </Text>
         <Button
           label="Back to Create Account"

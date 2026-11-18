@@ -1,23 +1,16 @@
 # Connecting the passenger app
 
-## Current boundary
+Passenger authentication now uses Vooma API for email/password and Supabase for
+Google identity verification. See [AUTH_SETUP.md](AUTH_SETUP.md) for setup and
+actual endpoint contracts. Account creation, profile completion and passenger
+sessions are implemented. Phone verification, password recovery and account
+management remain future work.
 
-The sibling API supports driver OTP/password authentication, onboarding,
-document review, driver availability and authenticated driver mapping tools.
-It does not expose passenger accounts, passenger booking, dispatch, activity or
-payments. Existing driver service categories are not defined by vehicle body
-type. Go, Comfort and XL in this app are proposed demo options.
+The remaining ride experience is local and simulated. Passenger clients must
+never use driver OTP/password endpoints or admin credentials.
 
-All application state in this version is explicitly local and simulated. Do not
-point a passenger client at `/v1/auth/password/login` or driver OTP routes: those
-routes create or authenticate driver identities. Do not reuse the admin session.
+## Remaining backend work
 
-## Required backend work
-
-1. **Passenger identity:** separate passenger authentication and account/profile
-   endpoints, server-side role enforcement, session expiry, revocation and logout.
-   Use secure native token storage and a suitable authenticated browser strategy;
-   do not store bearer tokens in the current AsyncStorage demo document.
 2. **Places and routing:** authenticated address search, reverse geocoding, road
    routes, pickup validation and service area rules. Display actual coordinates
    on a native/web map. Keep server routing credentials on the API and restrict
