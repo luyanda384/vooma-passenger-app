@@ -144,19 +144,21 @@ function PassengerApp() {
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="dark" />
-      <View style={styles.header}>
-        <View style={[styles.headerContent, wide && { paddingHorizontal: 30 }]}>
-          <View style={{ gap: 5 }}>
-            <Logo size={130} />
-            <Text style={styles.passenger}>PASSENGER</Text>
-          </View>
-          {wide && navigation}
-          <View style={styles.demoPill}>
-            <View style={styles.orangeDot} />
-            <Text style={styles.demoText}>DEMO MODE</Text>
+      {(tab !== "home" || wide) && (
+        <View style={styles.header}>
+          <View style={[styles.headerContent, wide && { paddingHorizontal: 30 }]}>
+            <View style={{ gap: 5 }}>
+              <Logo size={130} />
+              <Text style={styles.passenger}>PASSENGER</Text>
+            </View>
+            {wide && navigation}
+            <View style={styles.demoPill}>
+              <View style={styles.orangeDot} />
+              <Text style={styles.demoText}>DEMO MODE</Text>
+            </View>
           </View>
         </View>
-      </View>
+      )}
       <ScrollView
         key={tab}
         keyboardShouldPersistTaps="handled"
@@ -169,7 +171,7 @@ function PassengerApp() {
           </View>
         )}
         {tab === "home" && (
-          <HomeScreen onRide={setRideId} onSaved={() => setTab("saved")} />
+          <HomeScreen onRide={setRideId} />
         )}
         {tab === "rides" && (
           <ActivityScreen onRide={setRideId} onBook={() => setTab("home")} />

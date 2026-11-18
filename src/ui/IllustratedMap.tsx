@@ -46,55 +46,49 @@ export function IllustratedMap({ route = false }: { route?: boolean }) {
         viewBox="0 0 500 400"
         preserveAspectRatio="xMidYMid slice"
       >
-        <Rect width="500" height="400" fill="#E7EFF2" />
-        <G fill="#D1E5DC">
-          <Path d="M0 0h156l-20 95-76 45H0ZM340 250l160-18v168H374Z" />
-          <Rect x="190" y="135" width="60" height="54" rx="18" />
+        <Rect width="500" height="400" fill="#EEF1F2" />
+        <G fill="#DCEBDD">
+          <Path d="M0 0h120l-22 75-62 38H0ZM378 252l122-18v166H412Z" />
+          <Path d="M342 0h158v92l-72 24-65-43ZM0 295l88-21 45 63-18 63H0Z" />
         </G>
-        <G fill="#DCE5E8">
-          <Rect x="184" y="20" width="89" height="78" rx="8" />
-          <Rect x="303" y="23" width="90" height="77" rx="8" />
-          <Rect x="77" y="177" width="79" height="75" rx="8" />
-          <Rect x="184" y="220" width="90" height="83" rx="8" />
-          <Rect x="305" y="138" width="85" height="61" rx="8" />
-          <Rect x="70" y="310" width="83" height="80" rx="8" />
+        <G fill="#E2E6E7">
+          <Rect x="147" y="22" width="83" height="67" rx="7" />
+          <Rect x="270" y="18" width="72" height="80" rx="8" />
+          <Rect x="378" y="121" width="83" height="67" rx="7" />
+          <Rect x="37" y="152" width="74" height="76" rx="8" />
+          <Rect x="160" y="154" width="70" height="58" rx="8" />
+          <Rect x="305" y="229" width="71" height="70" rx="8" />
+          <Rect x="139" y="309" width="83" height="70" rx="8" />
+          <Rect x="260" y="317" width="77" height="65" rx="8" />
         </G>
-        <G fill="none" stroke="#FAFDFE" strokeWidth="13">
-          <Path d="M-20 157 520 114M-30 287 520 211M165-20 169 420M287-20 291 420M414-20 417 420M-10 50 520 362M-20 354 520 291" />
+        <G fill="none" stroke="#FFFFFF" strokeWidth="8">
+          <Path d="M-20 125 520 167M-30 277 520 218M118-20 141 420M254-20 270 420M375-20 399 420M-10 46 520 355M-20 354 520 307" />
         </G>
-        <G fill="none" stroke="#D2DEE4" strokeWidth="1">
-          <Path d="M-20 157 520 114M-30 287 520 211M165-20 169 420M287-20 291 420" />
+        <G fill="none" stroke="#F5D46A" strokeWidth="4">
+          <Path d="M-20 125 520 167M-30 277 520 218M118-20 141 420M254-20 270 420M375-20 399 420M-10 46 520 355M-20 354 520 307" />
         </G>
         <G
-          fill="#788D98"
+          fill="#303B48"
           fontFamily="sans-serif"
-          fontSize="11"
-          fontWeight="600"
+          fontSize="15"
+          fontWeight="700"
         >
-          <SvgText x="187" y="64">
-            SANDTON
+          <SvgText x="220" y="91">
+            Sandton
           </SvgText>
-          <SvgText x="83" y="231">
-            HYDE PARK
+          <SvgText x="70" y="236" fontSize="11" fontWeight="500">
+            Melville
           </SvgText>
-          <SvgText x="311" y="273">
-            MELROSE
+          <SvgText x="216" y="166">
+            Rosebank
           </SvgText>
-          <SvgText x="184" y="358">
-            ROSEBANK
-          </SvgText>
-        </G>
-        <G fill="#87A799" fontFamily="sans-serif" fontSize="9">
-          <SvgText x="30" y="50">
-            GREEN SPACE
-          </SvgText>
-          <SvgText x="399" y="350">
-            PARK
+          <SvgText x="180" y="315" fontSize="21" fontWeight="700">
+            Johannesburg
           </SvgText>
         </G>
         {route && (
           <Path
-            d="M169 290v-81l120-17v-64l54-5"
+            d="M250 232v-71l-55-39v-58"
             stroke="#203147"
             strokeWidth="5"
             strokeLinecap="round"
@@ -102,26 +96,19 @@ export function IllustratedMap({ route = false }: { route?: boolean }) {
             strokeDasharray="8 6"
           />
         )}
-        <Circle cx="169" cy="290" r="27" fill="#FF7A00" opacity=".14" />
-        <Circle
-          cx="169"
-          cy="290"
-          r="11"
-          fill="#FF7A00"
-          stroke="#FFF"
-          strokeWidth="4"
-        />
+        <Circle cx="250" cy="232" r="31" fill="#1976F3" opacity=".16" />
+        <Circle cx="250" cy="232" r="13" fill="#1976F3" stroke="#FFF" strokeWidth="5" />
         {route && (
           <G>
             <Circle
-              cx="343"
-              cy="123"
+              cx="195"
+              cy="103"
               r="16"
               fill="#203147"
               stroke="#FFF"
               strokeWidth="4"
             />
-            <Rect x="338" y="118" width="10" height="10" rx="2" fill="#FFF" />
+            <Rect x="190" y="98" width="10" height="10" rx="2" fill="#FFF" />
           </G>
         )}
       </Svg>
@@ -142,9 +129,8 @@ export function IllustratedMap({ route = false }: { route?: boolean }) {
 }
 const styles = StyleSheet.create({
   map: {
-    height: 310,
-    minHeight: 240,
-    flexGrow: 1,
+    height: 205,
+    minHeight: 190,
     borderRadius: 26,
     overflow: "hidden",
     backgroundColor: "#E7EFF2",

@@ -4,7 +4,6 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
 import {
   createRide,
@@ -13,35 +12,31 @@ import {
   money,
   places,
   quote,
-  services,
   statusLabels,
   type Place,
-  type ServiceId,
 } from "../domain/passenger";
 import { usePassenger } from "../state/PassengerProvider";
 import { Button, c, Icon, Notice, Sheet, ui } from "../ui/components";
-import { Car, IllustratedMap } from "../ui/IllustratedMap";
+import { IllustratedMap } from "../ui/IllustratedMap";
 import { PlacePicker } from "./PlacePicker";
+
+const recentPlaces = [places[0], places[2]];
 
 export function HomeScreen({
   onRide,
-  onSaved,
 }: {
   onRide: (id: string) => void;
-  onSaved: () => void;
 }) {
   const { state, update } = usePassenger();
-  const wide = useWindowDimensions().width >= 850;
   const [pickup, setPickup] = useState<Place>(places[0]);
   const [destination, setDestination] = useState<Place | null>(null);
   const [picker, setPicker] = useState<"pickup" | "destination" | null>(null);
-  const [service, setService] = useState<ServiceId>("go");
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduledAt, setScheduledAt] = useState<string | null>(null);
   const [error, setError] = useState("");
   const active = state.rides.find(isActive);
-  const estimate = destination ? quote(pickup, destination, service) : null;
-  const favourites = places.filter((p) => state.saved.includes(p.id));
+  const estimate = destination ? quote(pickup, destination, "go") : null;
+
   function book() {
     if (!destination) {
       setPicker("destination");
@@ -53,7 +48,7 @@ export function HomeScreen({
         const ride = createRide(previous, {
           pickup,
           destination,
-          service,
+          service: "go",
           scheduledAt,
         });
         rideId = ride.id;
@@ -67,20 +62,34 @@ export function HomeScreen({
       );
     }
   }
+
   return (
-    <View style={{ gap: 24 }}>
+    <View style={styles.screen}>
       <View style={ui.between}>
-        <View style={{ flex: 1, gap: 5 }}>
-          <Text style={ui.label}>YOUR CITY. YOUR PACE.</Text>
-          <Text accessibilityRole="header" style={ui.h1}>
-            Where to{state.name ? `, ${state.name.split(" ")[0]}` : ""}?
-          </Text>
-          <Text style={ui.body}>A fresh day. A new destination. Let’s go.</Text>
-        </View>
-        <View style={styles.sun}>
-          <Icon name="sunny-outline" color={c.orange} size={27} />
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Pickup: ${pickup.name}`}
+          onPress={() => setPicker("pickup")}
+          style={[ui.row, styles.cityButton]}
+        >
+          <Icon name="location" size={23} />
+          <Text style={styles.cityName}>Johannesburg</Text>
+          <Icon name="chevron-down" size={17} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Choose pickup time"
+          onPress={() => setScheduleOpen(true)}
+          style={styles.scheduleButton}
+        >
+          <Icon name="time-outline" size={22} />
+        </Pressable>
       </View>
+
+      <Text accessibilityRole="header" style={styles.title}>
+        Where are you going today?
+      </Text>
+
       {active && (
         <Pressable
           accessibilityRole="button"
@@ -90,9 +99,7 @@ export function HomeScreen({
         >
           <Icon name="car-outline" color={c.white} />
           <View style={{ flex: 1, gap: 4 }}>
-            <Text style={styles.activeTitle}>
-              {statusLabels[active.status]}
-            </Text>
+            <Text style={styles.activeTitle}>{statusLabels[active.status]}</Text>
             <Text style={{ color: c.sky, fontSize: 13 }}>
               {active.destination.name} · tap to continue your demo
             </Text>
@@ -100,238 +107,77 @@ export function HomeScreen({
           <Icon name="arrow-forward" color={c.white} />
         </Pressable>
       )}
-      <View
-        style={[
-          styles.layout,
-          wide && { flexDirection: "row", alignItems: "stretch" },
-        ]}
+
+      <IllustratedMap route={!!destination} />
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={
+          destination ? `Change destination: ${destination.name}` : "Where to?"
+        }
+        onPress={() => setPicker("destination")}
+        style={styles.search}
       >
-        <View style={[styles.mapColumn, wide && { flex: 1.1 }]}>
-          <IllustratedMap route={!!destination} />
-          <View style={styles.promise}>
-            <View style={{ flex: 1, gap: 5 }}>
-              <Text style={ui.label}>A RIDE FOR EVERY DAY</Text>
-              <Text style={ui.h2}>Good things are{"\n"}just a ride away.</Text>
-              <Text style={ui.small}>Built for the way you move.</Text>
-            </View>
-            <Car />
+        <Icon name="search" size={25} color={c.muted} />
+        <Text
+          numberOfLines={1}
+          style={[styles.searchText, !destination && { color: c.muted }]}
+        >
+          {destination?.name ?? "Where to?"}
+        </Text>
+      </Pressable>
+
+      {scheduledAt && (
+        <Text style={ui.small}>Pickup: {dateLabel(scheduledAt)} SAST</Text>
+      )}
+
+      {estimate && (
+        <View style={styles.requestRide}>
+          <View style={ui.row}>
+            <Icon name="cash-outline" size={20} />
+            <Text style={[ui.small, { flex: 1 }]}>
+              Cash · {estimate.distanceKm.toFixed(1)} km · approx.{" "}
+              {estimate.minutes} min
+            </Text>
           </View>
-        </View>
-        <View style={[ui.card, wide && { flex: 1 }, { gap: 18 }]}>
-          <View style={ui.between}>
-            <Text style={ui.h2}>Plan your ride</Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Choose pickup time"
-              onPress={() => setScheduleOpen(true)}
-              style={[ui.row, styles.schedule]}
-            >
-              <Icon name="time-outline" size={17} />
-              <Text style={{ fontWeight: "600", color: c.navy, fontSize: 12 }}>
-                {scheduledAt ? "Scheduled" : "Ride now"}
-              </Text>
-              <Icon name="chevron-down" size={14} />
-            </Pressable>
-          </View>
-          <View style={styles.locations}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Pickup: ${pickup.name}`}
-              onPress={() => setPicker("pickup")}
-              style={styles.locationRow}
-            >
-              <View style={styles.pickupDot} />
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={ui.label}>PICKUP</Text>
-                <Text style={ui.h3} numberOfLines={1}>
-                  {pickup.name}
-                </Text>
-              </View>
-              <Icon name="chevron-forward" size={18} />
-            </Pressable>
-            <View style={[ui.divider, { marginLeft: 36 }]} />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={
-                destination
-                  ? `Destination: ${destination.name}`
-                  : "Choose destination"
-              }
-              onPress={() => setPicker("destination")}
-              style={styles.locationRow}
-            >
-              <View style={styles.destinationDot} />
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={ui.label}>DROP-OFF</Text>
-                <Text
-                  style={[ui.h3, !destination && { color: c.muted }]}
-                  numberOfLines={1}
-                >
-                  {destination?.name ?? "Where are you going?"}
-                </Text>
-              </View>
-              <Icon name="search-outline" size={19} />
-            </Pressable>
-          </View>
-          {scheduledAt && (
-            <Text style={ui.small}>Pickup: {dateLabel(scheduledAt)} SAST</Text>
-          )}
-          {destination ? (
-            <View style={{ gap: 10 }}>
-              <View style={ui.between}>
-                <Text style={ui.label}>CHOOSE YOUR RIDE</Text>
-                <Text style={ui.small}>Sample fares</Text>
-              </View>
-              {services.map((option) => {
-                const selected = option.id === service;
-                return (
-                  <Pressable
-                    key={option.id}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: selected }}
-                    accessibilityLabel={`${option.name}, ${option.seats} seats, ${money(quote(pickup, destination, option.id).fare)}`}
-                    onPress={() => setService(option.id)}
-                    style={[styles.service, selected && styles.serviceSelected]}
-                  >
-                    <View
-                      style={[
-                        styles.carIcon,
-                        selected && { backgroundColor: c.sky },
-                      ]}
-                    >
-                      <Icon name={option.icon} size={30} />
-                    </View>
-                    <View style={{ flex: 1, gap: 3 }}>
-                      <Text style={ui.h3}>{option.name}</Text>
-                      <Text style={ui.small}>
-                        {option.description} · {option.seats} seats
-                      </Text>
-                    </View>
-                    <View style={{ alignItems: "flex-end", gap: 5 }}>
-                      <Text style={ui.h3}>
-                        {money(quote(pickup, destination, option.id).fare)}
-                      </Text>
-                      <Icon
-                        name={selected ? "radio-button-on" : "radio-button-off"}
-                        size={18}
-                      />
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : (
-            <View style={{ gap: 12 }}>
-              <Text style={ui.label}>A LITTLE INSPIRATION</Text>
-              {[places[1], places[2]].map((place) => (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Go to ${place.name}`}
-                  key={place.id}
-                  onPress={() => setDestination(place)}
-                  style={[ui.row, { paddingVertical: 6 }]}
-                >
-                  <View style={ui.iconButton}>
-                    <Icon
-                      name={
-                        place.id === "airport"
-                          ? "airplane-outline"
-                          : "bag-outline"
-                      }
-                      size={20}
-                    />
-                  </View>
-                  <View style={{ flex: 1, gap: 3 }}>
-                    <Text style={ui.h3}>{place.name}</Text>
-                    <Text style={ui.small}>
-                      {place.id === "airport"
-                        ? "Your next adventure starts here"
-                        : "Shopping, coffee & a change of scene"}
-                    </Text>
-                  </View>
-                  <Icon name="arrow-forward" size={18} />
-                </Pressable>
-              ))}
-            </View>
-          )}
-          {estimate && (
-            <View style={ui.row}>
-              <Icon name="cash-outline" size={20} />
-              <Text style={[ui.small, { flex: 1 }]}>
-                Cash · {estimate.distanceKm.toFixed(1)} km · approx.{" "}
-                {estimate.minutes} min
-              </Text>
-            </View>
-          )}
-          {error !== "" && <Notice error>{error}</Notice>}
           <Button
-            label={
-              destination
-                ? `Request demo ride · ${money(estimate!.fare)}`
-                : "Find a ride"
-            }
+            label={`Request demo ride · ${money(estimate!.fare)}`}
             icon="arrow-forward"
             onPress={book}
             disabled={!!active}
           />
           <Text style={[ui.small, { textAlign: "center" }]}>
             Demo only. No driver is contacted and no payment is taken.
-            {destination
-              ? " Distance and fares are illustrative estimates."
-              : ""}
+            Distance and fares are illustrative estimates.
           </Text>
         </View>
-      </View>
-      <View style={ui.between}>
-        <Text style={ui.h2}>Your go-to places</Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onSaved}
-          style={{ padding: 12 }}
-        >
-          <Text style={{ color: c.navy, fontWeight: "700" }}>
-            Manage <Text>↗</Text>
-          </Text>
-        </Pressable>
-      </View>
-      <View style={[ui.row, { flexWrap: "wrap", alignItems: "stretch" }]}>
-        {favourites.length ? (
-          favourites.map((place) => (
+      )}
+      {error !== "" && <Notice error>{error}</Notice>}
+
+      <View style={styles.section}>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>
+          Recent
+        </Text>
+        <View style={{ gap: 10 }}>
+          {recentPlaces.map((place) => (
             <Pressable
-              accessibilityRole="button"
               key={place.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Go to ${place.name}`}
               onPress={() => setDestination(place)}
-              style={styles.favourite}
+              style={styles.recent}
             >
-              <View style={ui.iconButton}>
-                <Icon name="heart-outline" />
+              <Icon name="time-outline" size={24} color={c.muted} />
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={styles.recentName}>{place.name}</Text>
+                <Text style={styles.recentAddress}>{place.address}</Text>
               </View>
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={ui.h3}>{place.name}</Text>
-                <Text style={ui.small}>{place.address}</Text>
-              </View>
-              <Icon name="arrow-forward" size={18} />
+              <Icon name="chevron-forward" size={20} color={c.muted} />
             </Pressable>
-          ))
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            onPress={onSaved}
-            style={styles.favourite}
-          >
-            <View style={ui.iconButton}>
-              <Icon name="add" />
-            </View>
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text style={ui.h3}>Make yourself at home</Text>
-              <Text style={ui.small}>
-                Save your favourite stops for a quicker start.
-              </Text>
-            </View>
-            <Icon name="chevron-forward" size={18} />
-          </Pressable>
-        )}
+          ))}
+        </View>
       </View>
+
       {picker && (
         <PlacePicker
           kind={picker}
@@ -380,85 +226,38 @@ export function HomeScreen({
     </View>
   );
 }
+
 const styles = StyleSheet.create({
-  layout: { gap: 20, flexDirection: "column-reverse" },
-  mapColumn: { gap: 18 },
-  sun: {
-    width: 54,
-    height: 54,
-    borderRadius: 20,
-    backgroundColor: "#FFF1DE",
-    alignItems: "center",
-    justifyContent: "center",
+  screen: { gap: 16 },
+  cityButton: {
+    minHeight: 44,
+    gap: 9,
+    paddingHorizontal: 8,
   },
-  promise: {
-    padding: 23,
-    borderRadius: 24,
-    backgroundColor: c.sky,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
+  cityName: {
+    color: c.ink,
+    fontSize: 17,
+    fontWeight: "700",
   },
-  schedule: {
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    borderRadius: 18,
-    backgroundColor: c.tint,
-  },
-  locations: { padding: 14, borderRadius: 18, backgroundColor: c.tint, gap: 5 },
-  locationRow: {
-    minHeight: 62,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 17,
-  },
-  pickupDot: {
-    width: 13,
-    height: 13,
-    borderRadius: 7,
-    backgroundColor: c.orange,
-    marginLeft: 4,
-  },
-  destinationDot: {
-    width: 13,
-    height: 13,
-    borderRadius: 3,
-    backgroundColor: c.navy,
-    marginLeft: 4,
-  },
-  service: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 12,
-    borderRadius: 17,
-    borderWidth: 1.5,
-    borderColor: c.line,
-  },
-  serviceSelected: { backgroundColor: "#F3F8FC", borderColor: c.navy },
-  carIcon: {
-    width: 53,
-    height: 48,
-    backgroundColor: c.tint,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  favourite: {
-    flex: 1,
-    minWidth: 250,
-    padding: 18,
+  scheduleButton: {
+    width: 44,
+    height: 44,
     borderRadius: 22,
-    borderColor: c.line,
-    borderWidth: 1,
     backgroundColor: c.white,
-    flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: c.line,
+  },
+  title: {
+    color: c.ink,
+    fontSize: 27,
+    lineHeight: 34,
+    fontWeight: "800",
+    letterSpacing: -0.8,
   },
   activeCard: {
-    padding: 20,
+    padding: 18,
     backgroundColor: c.navy,
     borderRadius: 20,
     flexDirection: "row",
@@ -466,4 +265,55 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   activeTitle: { color: c.white, fontSize: 17, fontWeight: "700" },
+  search: {
+    minHeight: 58,
+    marginTop: -20,
+    marginHorizontal: 6,
+    paddingHorizontal: 19,
+    borderRadius: 23,
+    backgroundColor: c.white,
+    borderWidth: 1,
+    borderColor: c.line,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 13,
+    shadowColor: c.navy,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
+  },
+  searchText: {
+    flex: 1,
+    color: c.ink,
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  section: { gap: 13 },
+  sectionTitle: {
+    color: c.ink,
+    fontSize: 21,
+    fontWeight: "800",
+    letterSpacing: -0.4,
+  },
+  requestRide: { gap: 12 },
+  recent: {
+    minHeight: 70,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: c.white,
+    borderWidth: 1,
+    borderColor: c.line,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    shadowColor: c.navy,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
+  },
+  recentName: { color: c.ink, fontSize: 15, fontWeight: "700" },
+  recentAddress: { color: c.muted, fontSize: 13 },
 });
