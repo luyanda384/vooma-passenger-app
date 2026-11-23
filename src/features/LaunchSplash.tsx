@@ -7,12 +7,8 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import * as SplashScreen from "expo-splash-screen";
 import { EntryLogo } from "../brand/EntryLogo";
 import { usePassenger } from "../state/PassengerProvider";
-
-// Hold the native launch screen until the matching React view has laid out.
-void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export function LaunchSplash({ children }: { children: ReactNode }) {
   const { ready, error } = usePassenger();
@@ -80,12 +76,7 @@ export function LaunchSplash({ children }: { children: ReactNode }) {
   }, [canContinue, reduced, finished, splash, logoReveal, logoScale]);
 
   return (
-    <View
-      style={styles.root}
-      onLayout={() => {
-        void SplashScreen.hideAsync().catch(() => {});
-      }}
-    >
+    <View style={styles.root}>
       {finished && children}
       {!finished && (
         <Animated.View

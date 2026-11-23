@@ -57,11 +57,20 @@ is already using port 8081, run `npm.cmd run web -- --port 8087` instead.
 Home and active trips display native Google/Apple maps with selected pickup and
 destination markers, recentering, and external directions. See
 [maps setup](docs/MAPS_SETUP.md) for Android/iOS keys and Expo Go behavior.
-The map does not display live drivers or in-app road routes.
-Live address search requires a development/store build containing the local
-`vooma-places` module; Expo Go cannot run it. Android also needs Places API (New)
-enabled for the existing map key. See [maps setup](docs/MAPS_SETUP.md) for builds
-and configuration. Booking, dispatch and payments are not connected.
+After a destination is selected and a pickup is available, Home shows nearby
+approved online cars, their Go/Comfort/XL categories,
+counts and known driving pickup estimates. It refreshes every 15 seconds and
+hides driver fixes older than 30 seconds. Category selection filters the map.
+The API searches within 5 km, expanding to 10 km when initial supply is empty;
+known pickups over 15 minutes are excluded. These are configurable Vooma limits.
+
+iOS address search needs a build with the local `vooma-places` module. Android
+uses native Places when available; Android without that module and web use the
+authenticated API's `GOOGLE_PLACES_API_KEY`. For browser map markers configure
+`EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY` with Maps JavaScript API and referrer
+restrictions. Without a browser map key, category availability still works.
+See the API's `docs/passenger-discovery.md` for setup and the shared contract.
+Booking, dispatch and payments are not connected.
 
 ## Storage
 

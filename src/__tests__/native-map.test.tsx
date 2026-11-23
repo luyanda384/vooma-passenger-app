@@ -50,6 +50,37 @@ beforeEach(() => {
   Constants.expoConfig!.extra = {};
   jest.mocked(isRunningInExpoGo).mockReturnValue(false);
 });
+
+test("available cars render with their category and pickup estimate", () => {
+  render(
+    <MapCanvas
+      pickup={places[0]}
+      recenter={0}
+      cars={[
+        {
+          id: "nearby-one",
+          category: "xl",
+          bodyType: "van",
+          location: { latitude: -26.11, longitude: 28.05 },
+          capturedAt: Date.now(),
+          distanceMeters: 500,
+          pickupSeconds: 180,
+          pickupDistanceMeters: 900,
+        },
+      ]}
+    />,
+  );
+  expect(
+    jest
+      .mocked(Marker)
+      .mock.calls.some(
+        ([props]) =>
+          props.identifier === "car-nearby-one" &&
+          props.title === "Vooma XL" &&
+          props.description === "3 min to pickup",
+      ),
+  ).toBe(true);
+});
 afterEach(() => {
   jest.restoreAllMocks();
   jest.useRealTimers();

@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import * as SplashScreen from "expo-splash-screen";
 import { dashboardColors } from "./src/ui/theme";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Logo } from "./src/brand/Logo";
@@ -32,6 +33,9 @@ import {
   ui,
   type IconName,
 } from "./src/ui/components";
+
+// Every startup path must dismiss the native splash, including session recovery.
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 type Tab = "home" | "rides" | "saved" | "profile";
 const tabs: { id: Tab; label: string; icon: IconName; activeIcon: IconName }[] =
@@ -206,7 +210,15 @@ function PassengerApp() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider><AccountApp /></AuthProvider>
+      <View
+        testID="app-root"
+        style={styles.root}
+        onLayout={() => {
+          void SplashScreen.hideAsync().catch(() => {});
+        }}
+      >
+        <AuthProvider><AccountApp /></AuthProvider>
+      </View>
     </SafeAreaProvider>
   );
 }

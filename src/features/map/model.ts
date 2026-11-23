@@ -1,10 +1,13 @@
 import type { Place } from "../../domain/passenger";
+import type { NearbyCar } from "../../api/discovery";
 
 export type PassengerMapProps = {
   pickup: Place;
   destination?: Place | null;
 };
 export type MapCanvasProps = Omit<PassengerMapProps, "pickup"> & {
+  cars?: NearbyCar[];
+  radiusMeters?: number;
   pickup: Place | null;
   recenter: number;
   fullscreen?: boolean;

@@ -10,7 +10,9 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import type { Place } from "../domain/passenger";
+import type { Place, ServiceId } from "../domain/passenger";
+import { useNearbyCars } from "../location/useNearbyCars";
+import { NearbyCars } from "./NearbyCars";
 import { Button, Icon, Notice, Sheet, ui } from "../ui/components";
 import { dashboardColors as c } from "../ui/theme";
 import { MapCanvas } from "./map/MapCanvas";
@@ -26,15 +28,21 @@ export function HomeScreen({
   const [manualPickup, setManualPickup] = useState<Place | null>(null);
   const location = useLivePickup({ enabled: manualPickup === null });
   const pickup = manualPickup ?? location.pickup;
+  const [destination, setDestination] = useState<Place | null>(null);
+  const showNearby = pickup !== null && destination !== null;
+  const nearby = useNearbyCars(showNearby ? pickup : null);
+  const [category, setCategory] = useState<ServiceId | null>(null);
   const [viewportHeight, setViewportHeight] = useState(height - 140);
   const [headerHeight, setHeaderHeight] = useState(88);
   const [searchHeight, setSearchHeight] = useState(60);
-  const [destination, setDestination] = useState<Place | null>(null);
   const [picker, setPicker] = useState<"pickup" | "destination" | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [error, setError] = useState("");
   const [recenter, setRecenter] = useState(0);
-  const mapHeight = Math.max(240, viewportHeight - headerHeight - 20);
+  const mapHeight = showNearby
+    ? Math.max(280, Math.min(420, viewportHeight - headerHeight - 230))
+    : Math.max(280, viewportHeight - headerHeight - 20);
+  const searchBottom = showNearby ? 16 : navigationInset + 36;
   const locating = location.status === "checking" || location.status === "idle";
 
   function refreshLocation() {
@@ -117,12 +125,20 @@ export function HomeScreen({
         <View style={styles.mapSection}>
           <View style={styles.mapFrame}>
             <MapCanvas
+              radiusMeters={showNearby ? nearby.data?.radiusMeters : undefined}
+              cars={
+                showNearby
+                  ? (nearby.data?.cars.filter(
+                      (car) => category === null || car.category === category,
+                    ) ?? [])
+                  : []
+              }
               pickup={pickup}
               destination={destination}
               recenter={recenter}
               height={mapHeight}
-              overlayBottom={navigationInset + searchHeight + 48}
-              navigationInset={navigationInset}
+              overlayBottom={searchBottom + searchHeight + 16}
+              navigationInset={showNearby ? 0 : navigationInset}
             />
             {!pickup && (
               <View style={styles.locationNotice}>
@@ -172,7 +188,7 @@ export function HomeScreen({
               style={[
                 styles.mapButton,
                 styles.recenterControl,
-                { bottom: navigationInset + searchHeight + 52 },
+                { bottom: searchBottom + searchHeight + 16 },
               ]}
             >
               <Icon name="locate-outline" size={25} color={c.ink} />
@@ -186,7 +202,7 @@ export function HomeScreen({
                 : "Where to?"
             }
             onPress={() => setPicker("destination")}
-            style={[styles.search, { bottom: navigationInset + 36 }]}
+            style={[styles.search, { bottom: searchBottom }]}
             onLayout={(event) =>
               setSearchHeight(event.nativeEvent.layout.height)
             }
@@ -204,6 +220,15 @@ export function HomeScreen({
           </Pressable>
         </View>
 
+        {showNearby && (
+          <View style={{ paddingBottom: navigationInset + 24 }}>
+            <NearbyCars
+              {...nearby}
+              selected={category}
+              onSelect={setCategory}
+            />
+          </View>
+        )}
         {error !== "" && <Notice error>{error}</Notice>}
       </ScrollView>
 
@@ -214,6 +239,7 @@ export function HomeScreen({
           onUseLiveLocation={
             picker === "pickup"
               ? () => {
+                  setCategory(null);
                   setManualPickup(null);
                   if (manualPickup === null && !location.pickup)
                     void location.retry();
@@ -224,6 +250,7 @@ export function HomeScreen({
           }
           onClose={() => setPicker(null)}
           onSelect={(place) => {
+            setCategory(null);
             if (picker === "pickup") setManualPickup(place);
             else setDestination(place);
             setError("");

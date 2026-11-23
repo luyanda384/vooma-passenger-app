@@ -1,6 +1,8 @@
 import { requireOptionalNativeModule } from "expo";
 import { Platform } from "react-native";
 import { validPlace, type Place, type SavedPlace } from "../domain/passenger";
+import { ApiError, passengerApi } from "../api/passenger";
+import { sessionStorage } from "../api/sessionStorage";
 
 export type Suggestion = {
   id: string;
@@ -29,6 +31,26 @@ function native(): PlacesModule {
         : "Address search needs the updated Vooma app. Install the latest app build to search for places.",
     );
   return module;
+}
+
+function usesApi() {
+  return (
+    Platform.OS === "web" ||
+    (Platform.OS === "android" &&
+      !requireOptionalNativeModule<PlacesModule>("VoomaPlaces"))
+  );
+}
+async function api<T>(path: string, input: object): Promise<T> {
+  const token = await sessionStorage.read();
+  if (!token) throw new Error("Sign in to search for places.");
+  try {
+    return (await passengerApi.discovery(path, input, token)) as T;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new Error(
+      "Address search is temporarily unavailable. Please try again later.",
+    );
+  }
 }
 
 async function timed<T>(request: Promise<T>): Promise<T> {
@@ -60,12 +82,20 @@ export const placeSearch = {
     bias?: SearchBias,
   ): Promise<Suggestion[]> {
     const matches = await timed(
-      native().search(
-        query.trim(),
-        bias?.latitude ?? null,
-        bias?.longitude ?? null,
-        session,
-      ),
+      usesApi()
+        ? api<Suggestion[]>("/v1/passenger/places/search", {
+            query: query.trim(),
+            session,
+            ...(bias
+              ? { bias: { latitude: bias.latitude, longitude: bias.longitude } }
+              : {}),
+          })
+        : native().search(
+            query.trim(),
+            bias?.latitude ?? null,
+            bias?.longitude ?? null,
+            session,
+          ),
     );
     return matches.filter(
       (match) =>
@@ -75,7 +105,11 @@ export const placeSearch = {
     );
   },
   async resolve(id: string, session: string): Promise<Place> {
-    const place = await timed(native().resolve(id, session));
+    const place = await timed(
+      usesApi()
+        ? api<Place>("/v1/passenger/places/resolve", { id, session })
+        : native().resolve(id, session),
+    );
     if (
       !validPlace(place) ||
       place.provider !== (Platform.OS === "ios" ? "apple" : "google") ||
@@ -97,7 +131,7 @@ export const placeSearch = {
         );
       return bookmark.place;
     }
-    if (Platform.OS !== "android")
+    if (Platform.OS === "ios")
       throw new Error(
         "Search for this place again using Apple Maps on this device.",
       );

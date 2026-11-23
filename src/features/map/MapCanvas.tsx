@@ -9,11 +9,14 @@ import {
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import { isRunningInExpoGo } from "expo";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import { Button, c, ui } from "../../ui/components";
+import { Button, Icon, c, ui } from "../../ui/components";
+import { services } from "../../domain/passenger";
 import { nativeMapProvider, type MapCanvasProps } from "./model";
 
 export function MapCanvas({
   pickup,
+  cars = [],
+  radiusMeters,
   destination,
   recenter,
   fullscreen = false,
@@ -73,7 +76,15 @@ export function MapCanvas({
       );
     } else {
       map.current?.animateToRegion(
-        { ...origin, latitudeDelta: 0.035, longitudeDelta: 0.035 },
+        {
+          ...origin,
+          latitudeDelta: radiusMeters ? (radiusMeters * 2.4) / 111320 : 0.035,
+          longitudeDelta: radiusMeters
+            ? (radiusMeters * 2.4) /
+              (111320 *
+                Math.max(0.1, Math.cos((origin.latitude * Math.PI) / 180)))
+            : 0.035,
+        },
         500,
       );
     }
@@ -87,6 +98,7 @@ export function MapCanvas({
     fullscreen,
     overlayBottom,
     height,
+    radiusMeters,
   ]);
 
   return (
@@ -128,6 +140,34 @@ export function MapCanvas({
           }}
           onMapReady={() => setStatus("ready")}
         >
+          {cars.map((car) => (
+            <Marker
+              key={car.id}
+              identifier={`car-${car.id}`}
+              coordinate={car.location}
+              title={
+                services.find((s) => s.id === car.category)?.name ?? "Vooma"
+              }
+              description={
+                car.pickupSeconds === null
+                  ? `${(car.distanceMeters / 1000).toFixed(1)} km away · ETA unavailable`
+                  : `${Math.max(1, Math.ceil(car.pickupSeconds / 60))} min to pickup`
+              }
+              accessibilityLabel={`Available ${car.category} car`}
+            >
+              <View
+                style={{
+                  padding: 5,
+                  borderRadius: 12,
+                  backgroundColor: "white",
+                  borderWidth: 1,
+                  borderColor: c.navy,
+                }}
+              >
+                <Icon name="car-sport" size={24} color={c.navy} />
+              </View>
+            </Marker>
+          ))}
           {pickup && (
             <Marker
               identifier="pickup"
