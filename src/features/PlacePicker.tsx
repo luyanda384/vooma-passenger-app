@@ -82,7 +82,20 @@ export function PlacePicker({
         style={ui.input}
         autoCorrect={false}
         returnKeyType="search"
+        onSubmitEditing={search.submit}
       />
+      {search.requiresSubmit && (
+        <Button
+          label="Search addresses"
+          icon="search-outline"
+          onPress={search.submit}
+          disabled={
+            resolving ||
+            search.status === "loading" ||
+            search.query.trim().length < 2
+          }
+        />
+      )}
       {kind === "pickup" && onUseLiveLocation && (
         <Button
           label="Use my current location"
@@ -114,7 +127,9 @@ export function PlacePicker({
       )}
       {search.status === "idle" && (
         <Text style={ui.small}>
-          Start typing a place name or address to see matching places.
+          {search.requiresSubmit
+            ? "Enter a place or full street address, include the suburb or city, then tap Search addresses."
+            : "Start typing a place name or address to see matching places."}
         </Text>
       )}
       {search.status === "ready" && search.suggestions.length === 0 && (

@@ -2,6 +2,7 @@ import { Platform } from "react-native";
 import { placeSearch } from "../places/service";
 import type { Place } from "../domain/passenger";
 import { ApiError, createPassengerApi, passengerApi } from "../api/passenger";
+import * as Location from "expo-location";
 
 let mockModule: any;
 jest.mock("../api/sessionStorage", () => ({
@@ -12,6 +13,10 @@ jest.mock("../api/passenger", () => ({
   passengerApi: { discovery: jest.fn(async () => []) },
 }));
 jest.mock("expo", () => ({ requireOptionalNativeModule: () => mockModule }));
+jest.mock("expo-location", () => ({
+  geocodeAsync: jest.fn(),
+  reverseGeocodeAsync: jest.fn(),
+}));
 const place: Place = {
   id: "google:one",
   name: "Provider place",
@@ -167,4 +172,65 @@ test("a provider outage is not reported as a connection error", async () => {
   } finally {
     global.fetch = originalFetch;
   }
+});
+
+test("iOS without the custom module searches real Apple addresses and resolves the selected result", async () => {
+  jest.replaceProperty(Platform, "OS", "ios");
+  mockModule = null;
+  jest
+    .mocked(Location.geocodeAsync)
+    .mockResolvedValue([{ latitude: -26.1076, longitude: 28.0567 }]);
+  jest.mocked(Location.reverseGeocodeAsync).mockResolvedValue([
+    {
+      name: "Sandton City",
+      streetNumber: "83",
+      street: "Rivonia Road",
+      district: "Sandton",
+      city: "Johannesburg",
+      region: "Gauteng",
+      country: "South Africa",
+      isoCountryCode: "ZA",
+      postalCode: "2196",
+      subregion: null,
+      timezone: null,
+      formattedAddress: null,
+    },
+  ]);
+  expect(placeSearch.requiresSubmit()).toBe(true);
+  const suggestions = await placeSearch.suggest(
+    "Sandton City",
+    "ios-go-session",
+  );
+  expect(Location.geocodeAsync).toHaveBeenCalledWith(
+    "Sandton City, South Africa",
+  );
+  expect(suggestions[0]).toMatchObject({
+    title: "Sandton City",
+    provider: "apple",
+  });
+  const selected = await placeSearch.resolve(
+    suggestions[0].id,
+    "ios-go-session",
+  );
+  expect(selected).toMatchObject({
+    latitude: -26.1076,
+    longitude: 28.0567,
+    provider: "apple",
+  });
+  expect(selected.address).toContain("83 Rivonia Road");
+  expect(passengerApi.discovery).not.toHaveBeenCalled();
+  placeSearch.end("ios-go-session");
+  await expect(
+    placeSearch.resolve(suggestions[0].id, "ios-go-session"),
+  ).rejects.toThrow("expired");
+});
+
+test("iOS address lookup returns no matches instead of inventing a place", async () => {
+  jest.replaceProperty(Platform, "OS", "ios");
+  mockModule = null;
+  jest.mocked(Location.geocodeAsync).mockResolvedValue([]);
+  expect(
+    await placeSearch.suggest("Unknown address", "ios-empty-session"),
+  ).toEqual([]);
+  placeSearch.end("ios-empty-session");
 });

@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 import { validPlace, type Place, type SavedPlace } from "../domain/passenger";
 import { ApiError, passengerApi } from "../api/passenger";
 import { sessionStorage } from "../api/sessionStorage";
+import { appleAddressSearch } from "./appleAddressSearch";
 
 export type Suggestion = {
   id: string;
@@ -76,26 +77,39 @@ async function timed<T>(request: Promise<T>): Promise<T> {
 }
 
 export const placeSearch = {
+  requiresSubmit() {
+    return (
+      Platform.OS === "ios" &&
+      !requireOptionalNativeModule<PlacesModule>("VoomaPlaces")
+    );
+  },
   async suggest(
     query: string,
     session: string,
     bias?: SearchBias,
   ): Promise<Suggestion[]> {
     const matches = await timed(
-      usesApi()
-        ? api<Suggestion[]>("/v1/passenger/places/search", {
-            query: query.trim(),
-            session,
-            ...(bias
-              ? { bias: { latitude: bias.latitude, longitude: bias.longitude } }
-              : {}),
-          })
-        : native().search(
-            query.trim(),
-            bias?.latitude ?? null,
-            bias?.longitude ?? null,
-            session,
-          ),
+      placeSearch.requiresSubmit()
+        ? appleAddressSearch.suggest(query, session)
+        : usesApi()
+          ? api<Suggestion[]>("/v1/passenger/places/search", {
+              query: query.trim(),
+              session,
+              ...(bias
+                ? {
+                    bias: {
+                      latitude: bias.latitude,
+                      longitude: bias.longitude,
+                    },
+                  }
+                : {}),
+            })
+          : native().search(
+              query.trim(),
+              bias?.latitude ?? null,
+              bias?.longitude ?? null,
+              session,
+            ),
     );
     return matches.filter(
       (match) =>
@@ -106,9 +120,11 @@ export const placeSearch = {
   },
   async resolve(id: string, session: string): Promise<Place> {
     const place = await timed(
-      usesApi()
-        ? api<Place>("/v1/passenger/places/resolve", { id, session })
-        : native().resolve(id, session),
+      placeSearch.requiresSubmit()
+        ? appleAddressSearch.resolve(id, session)
+        : usesApi()
+          ? api<Place>("/v1/passenger/places/resolve", { id, session })
+          : native().resolve(id, session),
     );
     if (
       !validPlace(place) ||
@@ -138,6 +154,7 @@ export const placeSearch = {
     return placeSearch.resolve(bookmark.providerId, session);
   },
   end(session: string) {
+    appleAddressSearch.end(session);
     void requireOptionalNativeModule<PlacesModule>("VoomaPlaces")
       ?.endSession(session)
       .catch(() => {});

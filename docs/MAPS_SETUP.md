@@ -14,13 +14,13 @@ remains in active trip details. The map extends behind the floating navigation
 bar, with search, recenter and provider attribution positioned above it. The
 navbar's appearance is unchanged.
 
-| Runtime | Embedded provider |
-| --- | --- |
-| Android Expo Go | Google Maps, using Expo Go's configuration |
-| Android development/store build | Google Maps; requires the Android key |
-| iOS Expo Go | Apple Maps (MapKit); Google native SDK is unavailable in this host |
-| iOS development/store build | Apple Maps; no Google key required |
-| Web | Selected-place card and Google Maps link; no native SDK import |
+| Runtime                         | Embedded provider                                                  |
+| ------------------------------- | ------------------------------------------------------------------ |
+| Android Expo Go                 | Google Maps, using Expo Go's configuration                         |
+| Android development/store build | Google Maps; requires the Android key                              |
+| iOS Expo Go                     | Apple Maps (MapKit); Google native SDK is unavailable in this host |
+| iOS development/store build     | Apple Maps; no Google key required                                 |
+| Web                             | Selected-place card and Google Maps link; no native SDK import     |
 
 The map button opens Apple Maps on iOS and Google Maps on Android/web, showing
 the selected pickup or driving directions between the selected endpoints using
@@ -65,14 +65,23 @@ destination, Add new place) use it through `src/places/service.ts`:
 - Requests start after two characters and a 300 ms typing pause. The current
   pickup biases nearby results without restricting searches to that location.
   Outdated responses and selections after dismissal are ignored. Errors, no
-  matches and retry are explicit; no sample catalogue or geocoding substitute is used.
+  matches and retry are explicit; no sample catalogue is used.
 
-**A development or store build is required. Expo Go cannot load this local native
-module.** `expo-dev-client` is installed. Build Android with `npm run build:android`
+**Full native autocomplete requires a development or store build. Expo Go cannot
+load the local native module.** In iOS Expo Go, the picker instead uses Apple's
+address geocoder already included in Expo Location: enter a place or complete
+street address with its suburb/city and tap **Search addresses** (or the keyboard
+Search key). Review the returned address and select it. This is address lookup,
+not autocomplete, so short partial business names may need a more precise query.
+Lookups are serialized and run only after Search to respect geocoder limits.
+Results and pending selections are discarded when the picker closes. Apple
+results remain on the Apple map; no Google key is needed on iOS.
+
+`expo-dev-client` is installed. Build Android with `npm run build:android`
 on a machine with Android Studio/SDK, or iOS with `npm run build:ios` on a Mac with
 Xcode. Then use `npm run start:dev` and open the installed Vooma app.
-Rebuild after native module or key changes. Web has no native search provider and
-shows an availability message rather than synthetic results.
+Rebuild after native module or key changes. Web and Android without the custom
+module use the authenticated passenger Google Places API fallback.
 
 Saved starts empty. Passengers choose a real search result and enter a label such
 as Home or Work. Google favourites persist only the place ID and passenger's label;

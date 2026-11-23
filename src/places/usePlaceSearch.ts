@@ -6,6 +6,8 @@ import type { Place, SavedPlace } from "../domain/passenger";
 export function usePlaceSearch(bias?: SearchBias) {
   const [session] = useState(() => randomUUID());
   const [query, setQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
+  const requiresSubmit = placeSearch.requiresSubmit?.() ?? false;
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [status, setStatus] = useState<
     "idle" | "loading" | "ready" | "resolving" | "error"
@@ -30,36 +32,39 @@ export function usePlaceSearch(bias?: SearchBias) {
   useEffect(() => {
     const version = ++revision.current;
     const text = query.trim();
-    if (text.length < 2) {
+    if (text.length < 2 || (requiresSubmit && submittedQuery !== text)) {
       setStatus("idle");
       return;
     }
     setStatus("loading");
-    const timer = setTimeout(() => {
-      void placeSearch
-        .suggest(text, session, currentBias.current)
-        .then((matches) => {
-          if (alive.current && version === revision.current) {
-            setSuggestions(matches);
-            setStatus("ready");
-          }
-        })
-        .catch((failure) => {
-          if (alive.current && version === revision.current) {
-            setError(
-              failure instanceof Error
-                ? failure.message
-                : "Address search is unavailable. Please try again.",
-            );
-            setStatus("error");
-          }
-        });
-    }, 300);
+    const timer = setTimeout(
+      () => {
+        void placeSearch
+          .suggest(text, session, currentBias.current)
+          .then((matches) => {
+            if (alive.current && version === revision.current) {
+              setSuggestions(matches);
+              setStatus("ready");
+            }
+          })
+          .catch((failure) => {
+            if (alive.current && version === revision.current) {
+              setError(
+                failure instanceof Error
+                  ? failure.message
+                  : "Address search is unavailable. Please try again.",
+              );
+              setStatus("error");
+            }
+          });
+      },
+      requiresSubmit ? 0 : 300,
+    );
     return () => {
       clearTimeout(timer);
       revision.current++;
     };
-  }, [query, session, attempt]);
+  }, [query, session, attempt, requiresSubmit, submittedQuery]);
 
   function change(value: string) {
     if (resolving.current) return;
@@ -67,9 +72,10 @@ export function usePlaceSearch(bias?: SearchBias) {
     if (next === query) return;
     revision.current++;
     setQuery(next);
+    if (requiresSubmit) setSubmittedQuery("");
     setSuggestions([]);
     setError("");
-    setStatus(next.trim().length >= 2 ? "loading" : "idle");
+    setStatus(!requiresSubmit && next.trim().length >= 2 ? "loading" : "idle");
   }
 
   async function select(item: Suggestion | SavedPlace): Promise<Place | null> {
@@ -100,6 +106,14 @@ export function usePlaceSearch(bias?: SearchBias) {
   }
 
   return {
+    requiresSubmit,
+    submit: () => {
+      if (resolving.current || query.trim().length < 2) return;
+      setSubmittedQuery(query.trim());
+      setError("");
+      setSuggestions([]);
+      setAttempt((value) => value + 1);
+    },
     query,
     change,
     suggestions,

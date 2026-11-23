@@ -34,6 +34,7 @@ jest.mock("../state/PassengerProvider", () => ({
 }));
 jest.mock("../places/service", () => ({
   placeSearch: {
+    requiresSubmit: jest.fn(() => false),
     suggest: jest.fn(),
     resolve: jest.fn(),
     saved: jest.fn(),
@@ -47,7 +48,51 @@ jest.mock(
   () => require("react-native-safe-area-context/jest/mock").default,
 );
 beforeEach(() => {
+  jest.mocked(placeSearch.requiresSubmit).mockReturnValue(false);
   mockState = { ...initialState, saved: [], rides: [] };
+});
+
+test("iOS address lookup offers a Search button and selects an Apple result", async () => {
+  jest.mocked(placeSearch.requiresSubmit).mockReturnValue(true);
+  const apple = {
+    ...selected,
+    id: "apple:lookup",
+    provider: "apple" as const,
+    providerId: undefined,
+  };
+  jest
+    .mocked(placeSearch.suggest)
+    .mockResolvedValue([
+      {
+        id: apple.id,
+        title: apple.name,
+        subtitle: apple.address,
+        provider: "apple",
+      },
+    ]);
+  jest.mocked(placeSearch.resolve).mockResolvedValue(apple);
+  render(<SavedScreen />);
+  fireEvent.press(screen.getByRole("button", { name: "Add new place" }));
+  expect(
+    screen.getByRole("button", { name: "Search addresses" }),
+  ).toBeDisabled();
+  fireEvent.changeText(
+    screen.getByLabelText("Saved place address"),
+    "83 Rivonia Road, Sandton",
+  );
+  expect(placeSearch.suggest).not.toHaveBeenCalled();
+  fireEvent.press(screen.getByRole("button", { name: "Search addresses" }));
+  fireEvent.press(
+    await screen.findByRole("button", {
+      name: `Select ${apple.name}, ${apple.address}`,
+    }),
+  );
+  await waitFor(() =>
+    expect(placeSearch.resolve).toHaveBeenCalledWith(
+      apple.id,
+      "saved-search-session",
+    ),
+  );
 });
 
 test("Saved starts empty, searches live results and persists a user-named bookmark", async () => {

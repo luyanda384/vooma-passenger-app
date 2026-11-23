@@ -64,7 +64,11 @@ hides driver fixes older than 30 seconds. Category selection filters the map.
 The API searches within 5 km, expanding to 10 km when initial supply is empty;
 known pickups over 15 minutes are excluded. These are configurable Vooma limits.
 
-iOS address search needs a build with the local `vooma-places` module. Android
+iOS installed builds use Apple autocomplete through `vooma-places`. iOS Expo Go
+uses Apple address lookup: enter a place or full address with its suburb/city,
+tap **Search addresses**, then choose a result. This uses Expo Location's existing
+Apple geocoder, does not need an API key, and avoids requests on every keystroke.
+Android
 uses native Places when available; Android without that module and web use the
 authenticated API's `GOOGLE_PLACES_API_KEY`. For browser map markers configure
 `EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY` with Maps JavaScript API and referrer

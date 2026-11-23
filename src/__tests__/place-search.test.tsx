@@ -4,6 +4,7 @@ import { placeSearch, type Suggestion } from "../places/service";
 
 jest.mock("../places/service", () => ({
   placeSearch: {
+    requiresSubmit: jest.fn(() => false),
     suggest: jest.fn(),
     resolve: jest.fn(),
     saved: jest.fn(),
@@ -18,8 +19,30 @@ const suggestion: Suggestion = {
   provider: "apple",
 };
 beforeEach(() => {
+  jest.mocked(placeSearch.requiresSubmit).mockReturnValue(false);
   jest.useFakeTimers();
   jest.mocked(placeSearch.suggest).mockReset().mockResolvedValue([suggestion]);
+});
+
+test("iOS Expo Go waits for Search and clears old results when the address changes", async () => {
+  jest.mocked(placeSearch.requiresSubmit).mockReturnValue(true);
+  const hook = renderHook(() => usePlaceSearch());
+  act(() => hook.result.current.change("Sandton City"));
+  await act(async () => jest.advanceTimersByTime(1000));
+  expect(placeSearch.suggest).not.toHaveBeenCalled();
+  expect(hook.result.current.status).toBe("idle");
+  act(() => hook.result.current.submit());
+  await act(async () => jest.advanceTimersByTime(1));
+  expect(placeSearch.suggest).toHaveBeenCalledWith(
+    "Sandton City",
+    "search-session",
+    undefined,
+  );
+  expect(hook.result.current.suggestions).toEqual([suggestion]);
+  act(() => hook.result.current.change("Rosebank Mall"));
+  expect(hook.result.current.suggestions).toEqual([]);
+  await act(async () => jest.advanceTimersByTime(1000));
+  expect(placeSearch.suggest).toHaveBeenCalledTimes(1);
 });
 afterEach(() => jest.useRealTimers());
 
