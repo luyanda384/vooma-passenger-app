@@ -5,8 +5,8 @@ coverage/
 .env
 .env.*
 !.env.example
-android/
-ios/
+/android/
+/ios/
 *.tsbuildinfo
 npm-debug.log*
 .qa/

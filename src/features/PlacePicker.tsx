@@ -1,89 +1,58 @@
-import { useEffect, useRef, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
-import * as Location from "expo-location";
-import { places, type Place } from "../domain/passenger";
-import { usePassenger } from "../state/PassengerProvider";
 import {
-  Button,
-  c,
-  Empty,
-  Icon,
-  IconButton,
-  Notice,
-  Sheet,
-  ui,
-} from "../ui/components";
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import type { Place } from "../domain/passenger";
+import { usePassenger } from "../state/PassengerProvider";
+import { usePlaceSearch } from "../places/usePlaceSearch";
+import type { SearchBias } from "../places/service";
+import { Button, Empty, Icon, Notice, Sheet, ui } from "../ui/components";
+import { dashboardColors as c } from "../ui/theme";
+
+function MatchedText({ text, query }: { text: string; query: string }) {
+  const start = text
+    .toLocaleLowerCase()
+    .indexOf(query.trim().toLocaleLowerCase());
+  if (start < 0 || !query.trim()) return <Text>{text}</Text>;
+  const end = start + query.trim().length;
+  return (
+    <Text>
+      {text.slice(0, start)}
+      <Text style={{ fontWeight: "800", color: c.link }}>
+        {text.slice(start, end)}
+      </Text>
+      {text.slice(end)}
+    </Text>
+  );
+}
 
 export function PlacePicker({
   kind,
   onSelect,
   onClose,
+  onUseLiveLocation,
+  bias,
 }: {
   kind: "pickup" | "destination" | "saved";
   onSelect: (place: Place) => void;
   onClose: () => void;
+  onUseLiveLocation?: () => void;
+  bias?: SearchBias;
 }) {
-  const { state, update } = usePassenger();
-  const [query, setQuery] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-  const filtered = places.filter((p) =>
-    `${p.name} ${p.address}`.toLowerCase().includes(query.trim().toLowerCase()),
-  );
-  async function locate() {
-    setBusy(true);
-    setError("");
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (!mounted.current) return;
-      if (permission.status !== "granted")
-        throw new Error(
-          "Location permission is off. Choose a pickup below, or enable location in your device settings.",
-        );
-      let timeout: ReturnType<typeof setTimeout> | undefined;
-      const result = await Promise.race([
-        Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        }),
-        new Promise<never>((_, reject) => {
-          timeout = setTimeout(
-            () =>
-              reject(
-                new Error(
-                  "Location took too long. Try again or choose a pickup below.",
-                ),
-              ),
-            15000,
-          );
-        }),
-      ]).finally(() => clearTimeout(timeout));
-      if (!mounted.current) return;
-      onSelect({
-        id: "current-location",
-        name: "Current location",
-        address: `${result.coords.latitude.toFixed(5)}, ${result.coords.longitude.toFixed(5)}`,
-        latitude: result.coords.latitude,
-        longitude: result.coords.longitude,
-      });
+  const { state } = usePassenger();
+  const search = usePlaceSearch(bias);
+  const resolving = search.status === "resolving";
+  const select = async (item: Parameters<typeof search.select>[0]) => {
+    const place = await search.select(item);
+    if (place) {
+      onSelect(place);
       onClose();
-    } catch (e) {
-      if (mounted.current)
-        setError(
-          e instanceof Error
-            ? e.message
-            : "Location is unavailable. Choose a pickup below.",
-        );
-    } finally {
-      if (mounted.current) setBusy(false);
     }
-  }
+  };
   return (
     <Sheet
       visible
@@ -97,77 +66,127 @@ export function PlacePicker({
       onClose={onClose}
     >
       <TextInput
-        accessibilityLabel="Search demo places"
-        placeholder="Search Johannesburg places"
+        accessibilityLabel={
+          kind === "pickup"
+            ? "Pickup address"
+            : kind === "destination"
+              ? "Destination address"
+              : "Saved place address"
+        }
+        placeholder="Search a place or street address"
         placeholderTextColor={c.muted}
-        value={query}
-        onChangeText={setQuery}
+        value={search.query}
+        onChangeText={search.change}
+        editable={!resolving}
+        maxLength={200}
         style={ui.input}
         autoCorrect={false}
+        returnKeyType="search"
       />
-      {kind === "pickup" && (
+      {kind === "pickup" && onUseLiveLocation && (
         <Button
           label="Use my current location"
           icon="locate-outline"
           secondary
-          busy={busy}
-          onPress={() => void locate()}
+          disabled={resolving}
+          onPress={() => {
+            onUseLiveLocation();
+            onClose();
+          }}
         />
       )}
-      {error !== "" && <Notice error>{error}</Notice>}
-      <Text style={ui.small}>
-        Search the sample destinations below. Full address search will be
-        available when the places service is connected.
-      </Text>
-      {filtered.length === 0 && (
+      {search.error !== "" && <Notice error>{search.error}</Notice>}
+      {search.status === "error" && search.query.trim().length >= 2 && (
+        <Button label="Retry address search" secondary onPress={search.retry} />
+      )}
+      {(search.status === "loading" || resolving) && (
+        <View style={ui.row}>
+          <ActivityIndicator
+            accessibilityLabel={
+              resolving ? "Loading selected place" : "Searching addresses"
+            }
+            color={c.link}
+          />
+          <Text accessibilityLiveRegion="polite" style={ui.body}>
+            {resolving ? "Loading address?" : "Searching places?"}
+          </Text>
+        </View>
+      )}
+      {search.status === "idle" && (
+        <Text style={ui.small}>
+          Start typing a place name or address to see matching places.
+        </Text>
+      )}
+      {search.status === "ready" && search.suggestions.length === 0 && (
         <Empty
           icon="search-outline"
           title="No matching places"
-          description="Try Sandton, Rosebank, Melrose or the airport."
+          description="Try adding a street name, suburb or city."
         />
       )}
-      {filtered.map((place) => (
-        <View key={place.id} style={[ui.row, { paddingVertical: 7 }]}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Select ${place.name}`}
-            onPress={() => {
-              onSelect(place);
-              onClose();
+      {search.suggestions.length > 0 && (
+        <View style={{ gap: 4 }}>
+          {search.suggestions.map((item) => (
+            <Pressable
+              key={item.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Select ${item.title}, ${item.subtitle}`}
+              disabled={resolving}
+              onPress={() => void select(item)}
+              style={[
+                ui.row,
+                {
+                  minHeight: 64,
+                  paddingVertical: 10,
+                  borderBottomWidth: 1,
+                  borderBottomColor: c.line,
+                },
+              ]}
+            >
+              <Icon name="location-outline" size={22} color={c.ink} />
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={ui.h3}>
+                  <MatchedText text={item.title} query={search.query} />
+                </Text>
+                <Text style={ui.small}>
+                  <MatchedText text={item.subtitle} query={search.query} />
+                </Text>
+              </View>
+              <Icon name="arrow-up-outline" size={18} color={c.muted} />
+            </Pressable>
+          ))}
+          <Text
+            style={{
+              color: "#5E5E5E",
+              fontSize: 12,
+              fontWeight: "400",
+              alignSelf: "flex-end",
+              paddingTop: 8,
             }}
-            style={[ui.row, { flex: 1, minHeight: 48 }]}
           >
-            <View style={ui.iconButton}>
-              <Icon
-                name={
-                  place.id === "airport"
-                    ? "airplane-outline"
-                    : "location-outline"
-                }
-                size={20}
-              />
-            </View>
-            <View style={{ flex: 1, gap: 3 }}>
-              <Text style={ui.h3}>{place.name}</Text>
-              <Text style={ui.small}>{place.address}</Text>
-            </View>
-          </Pressable>
-          {kind !== "saved" && (
-            <IconButton
-              name={state.saved.includes(place.id) ? "heart" : "heart-outline"}
-              label={`${state.saved.includes(place.id) ? "Unsave" : "Save"} ${place.name}`}
-              onPress={() =>
-                update((previous) => ({
-                  ...previous,
-                  saved: previous.saved.includes(place.id)
-                    ? previous.saved.filter((id) => id !== place.id)
-                    : [...previous.saved, place.id],
-                }))
-              }
-            />
-          )}
+            {Platform.OS === "ios" ? "Apple Maps" : "Google Maps"}
+          </Text>
         </View>
-      ))}
+      )}
+      {kind !== "saved" && !search.query.trim() && state.saved.length > 0 && (
+        <View style={{ gap: 8 }}>
+          <Text style={ui.h3}>Saved places</Text>
+          {state.saved.map((place) => (
+            <Pressable
+              key={place.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Select saved place ${place.label}`}
+              disabled={resolving}
+              onPress={() => void select(place)}
+              style={[ui.row, { minHeight: 56 }]}
+            >
+              <Icon name="bookmark-outline" color={c.link} />
+              <Text style={[ui.body, { flex: 1 }]}>{place.label}</Text>
+              <Icon name="chevron-forward" size={18} color={c.muted} />
+            </Pressable>
+          ))}
+        </View>
+      )}
     </Sheet>
   );
 }

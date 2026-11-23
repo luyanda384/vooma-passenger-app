@@ -114,7 +114,14 @@ describe("restoring local demo data", () => {
       ...initialState,
       welcomed: true,
       name: "Lebo",
-      saved: ["rosebank"],
+      saved: [
+        {
+          id: "google:place-one",
+          provider: "google",
+          providerId: "place-one",
+          label: "Work",
+        },
+      ],
       rides: [makeRide()],
     };
     expect(parseState(JSON.stringify(state))).toEqual(state);
@@ -125,7 +132,7 @@ describe("restoring local demo data", () => {
       "{broken",
       "{}",
       "null",
-      JSON.stringify({ ...initialState, version: 2 }),
+      JSON.stringify({ ...initialState, version: 3 }),
       JSON.stringify({ ...initialState, saved: ["unknown"] }),
     ])
       expect(() => parseState(raw)).toThrow();

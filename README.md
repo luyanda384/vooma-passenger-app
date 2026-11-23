@@ -41,22 +41,27 @@ is already using port 8081, run `npm.cmd run web -- --port 8087` instead.
 ## Included
 
 - Branded introduction and responsive passenger navigation.
-- Pickup selection, opt-in foreground GPS, and a searchable set of Johannesburg
-  sample destinations. Location denial and timeout leave manual selection usable.
-- Proposed Go, Comfort and XL options with sample ZAR estimates.
-- Immediate and scheduled demo rides, with one active booking at a time.
-- Explicit simulation from request to driver match, pickup and trip completion.
-- Cancellation before trip start, completed-trip ratings, and demo trip sharing.
-- Persistent trip history, saved places and an editable local display name.
-- Cash selection, clear payment limitations, privacy information and confirmed
+- Live GPS pickup by default, with a dropdown to choose a fixed pickup using
+  Apple Maps (iOS) or Google Places (Android) autocomplete. Live mode
+  requires a fresh fix; a chosen manual pickup can be used without live GPS.
+- Map-focused Home with pickup and destination selection; demo request, fare
+  and scheduling controls have been removed.
+- Live suggestions for pickup, destination and adding favourites. Saved places
+  use passenger-written labels; there are no preset favourites or Recent places.
+- Previously saved simulations are retained in storage but hidden from Rides.
+- Locally saved favourites and an editable display name.
+- Clear payment limitations, privacy information and confirmed
   local-data reset. No card data is collected.
 - Accessible controls, safe-area handling, and phone/tablet/browser layouts.
 
-The map is labelled illustrative. It does not display live GPS positions,
-drivers or actual road routes. Distance uses a straight-line calculation with a
-sample multiplier; fares and travel times are not commercial quotes. Scheduling
-saves a local demonstration and never triggers background dispatch. Dates are
-displayed in South African Standard Time.
+Home and active trips display native Google/Apple maps with selected pickup and
+destination markers, recentering, and external directions. See
+[maps setup](docs/MAPS_SETUP.md) for Android/iOS keys and Expo Go behavior.
+The map does not display live drivers or in-app road routes.
+Live address search requires a development/store build containing the local
+`vooma-places` module; Expo Go cannot run it. Android also needs Places API (New)
+enabled for the existing map key. See [maps setup](docs/MAPS_SETUP.md) for builds
+and configuration. Booking, dispatch and payments are not connected.
 
 ## Storage
 
@@ -64,8 +69,11 @@ Native session token: Expo SecureStore `vooma.passenger.session.v1`. No password
 or session tokens are stored in AsyncStorage. Web OAuth stores only short-lived
 PKCE verifiers in sessionStorage so a full-page Google redirect can complete.
 
-Demo history: AsyncStorage `vooma.passenger.demo.v1.<passenger-id>`. Includes
-saved places, demo trips, coordinates, ratings and a local display name.
+Local account data retains the existing AsyncStorage key
+`vooma.passenger.demo.v1.<passenger-id>` for compatibility. Schema v2 stores real
+saved-place bookmarks and preserves legacy trip data. Old sample favourite IDs
+are removed on migration. Google bookmarks persist only place IDs and user labels;
+details are fetched when selected. Apple bookmarks retain the selected place.
 Corrupt data requires an explicit reset; failed writes expose a retry action.
 
 ## Validation

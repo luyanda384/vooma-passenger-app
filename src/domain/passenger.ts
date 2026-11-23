@@ -4,7 +4,32 @@ export type Place = {
   address: string;
   latitude: number;
   longitude: number;
+  provider?: "apple" | "google";
+  providerId?: string;
 };
+// Google bookmarks persist only the exempt place ID and a passenger-written label.
+// Provider names, addresses and coordinates are resolved again when selected.
+export type SavedPlace =
+  | { id: string; label: string; provider: "google"; providerId: string }
+  | { id: string; label: string; provider: "apple"; place: Place };
+
+export function bookmarkPlace(place: Place, label: string): SavedPlace {
+  const name = label.trim();
+  if (!name || name.length > 80)
+    throw new Error("Enter a name for this saved place.");
+  if (!validPlace(place)) throw new Error("Choose a valid address first.");
+  if (place.provider === "google" && place.providerId) {
+    return {
+      id: place.id,
+      label: name,
+      provider: "google",
+      providerId: place.providerId,
+    };
+  }
+  if (place.provider === "apple")
+    return { id: place.id, label: name, provider: "apple", place };
+  throw new Error("Search for a place before saving it.");
+}
 export const places: Place[] = [
   {
     id: "sandton",
@@ -118,14 +143,14 @@ export type Ride = {
   rating: number | null;
 };
 export type PassengerState = {
-  version: 1;
+  version: 2;
   welcomed: boolean;
   name: string;
-  saved: string[];
+  saved: SavedPlace[];
   rides: Ride[];
 };
 export const initialState: PassengerState = {
-  version: 1,
+  version: 2,
   welcomed: false,
   name: "",
   saved: [],
@@ -242,7 +267,7 @@ const record = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 const validDate = (value: unknown): value is string =>
   typeof value === "string" && Number.isFinite(Date.parse(value));
-function validPlace(value: unknown): value is Place {
+export function validPlace(value: unknown): value is Place {
   return (
     record(value) &&
     typeof value.id === "string" &&
@@ -286,17 +311,48 @@ export function parseState(raw: string | null): PassengerState {
   const value: unknown = JSON.parse(raw);
   if (
     !record(value) ||
-    value.version !== 1 ||
+    (value.version !== 1 && value.version !== 2) ||
     typeof value.welcomed !== "boolean" ||
     typeof value.name !== "string" ||
     value.name.length > 60 ||
     !Array.isArray(value.saved) ||
-    !value.saved.every((id) => places.some((p) => p.id === id)) ||
+    !(value.version === 1
+      ? value.saved.every((id) => places.some((p) => p.id === id))
+      : value.saved.every(validSavedPlace)) ||
     !Array.isArray(value.rides) ||
     !value.rides.every(validRide) ||
     value.rides.filter(isActive).length > 1 ||
     new Set(value.rides.map((ride) => ride.id)).size !== value.rides.length
   )
-    throw new Error("Saved demo data could not be read.");
-  return value as PassengerState;
+    throw new Error("Saved data could not be read.");
+  // Old favourites were references to the built-in sample catalogue, not live places.
+  // Keep the rest of the account's existing local data intact.
+  return {
+    ...value,
+    version: 2,
+    saved: value.version === 1 ? [] : value.saved,
+  } as PassengerState;
+}
+
+function validSavedPlace(value: unknown): value is SavedPlace {
+  if (
+    !record(value) ||
+    typeof value.id !== "string" ||
+    typeof value.label !== "string" ||
+    !value.label.trim() ||
+    value.label.length > 80
+  )
+    return false;
+  if (value.provider === "google")
+    return (
+      typeof value.providerId === "string" &&
+      value.providerId.length > 0 &&
+      value.id === `google:${value.providerId}`
+    );
+  return (
+    value.provider === "apple" &&
+    validPlace(value.place) &&
+    value.place.provider === "apple" &&
+    value.id === value.place.id
+  );
 }

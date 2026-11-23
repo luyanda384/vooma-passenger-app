@@ -29,10 +29,17 @@ export function Car({ large = false }: { large?: boolean }) {
   );
 }
 /** Deliberately illustrative: never implies live GPS, roads or driver positions. */
-export function IllustratedMap({ route = false }: { route?: boolean }) {
+export function IllustratedMap({
+  route = false,
+  variant = "default",
+}: {
+  route?: boolean;
+  variant?: "default" | "saved";
+}) {
+  const saved = variant === "saved";
   return (
     <View
-      style={styles.map}
+      style={[styles.map, saved && styles.savedMap]}
       accessible
       accessibilityLabel={
         route
@@ -112,17 +119,30 @@ export function IllustratedMap({ route = false }: { route?: boolean }) {
           </G>
         )}
       </Svg>
-      <View style={styles.top}>
-        <View style={[ui.row, styles.chip]}>
-          <Icon name="location-outline" size={16} />
-          <Text style={styles.chipText}>Johannesburg</Text>
+      {saved ? (
+        <>
+          <View style={styles.compassControl}>
+            <Icon name="navigate-outline" size={19} color={c.muted} />
+          </View>
+          <View style={styles.locateControl}>
+            <Icon name="locate-outline" size={21} color={c.navy} />
+          </View>
+        </>
+      ) : (
+        <View style={styles.top}>
+          <View style={[ui.row, styles.chip]}>
+            <Icon name="location-outline" size={16} />
+            <Text style={styles.chipText}>Johannesburg</Text>
+          </View>
+          <View style={[styles.chip, { backgroundColor: c.navy }]}>
+            <Text style={[styles.chipText, { color: c.white }]}>DEMO AREA</Text>
+          </View>
         </View>
-        <View style={[styles.chip, { backgroundColor: c.navy }]}>
-          <Text style={[styles.chipText, { color: c.white }]}>DEMO AREA</Text>
-        </View>
-      </View>
+      )}
       <View style={styles.caption}>
-        <Text style={ui.small}>Illustrative map · not live navigation</Text>
+        <Text style={ui.small}>
+          {saved ? "Illustrative map · not live location" : "Illustrative map · not live navigation"}
+        </Text>
       </View>
     </View>
   );
@@ -134,6 +154,29 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     overflow: "hidden",
     backgroundColor: "#E7EFF2",
+  },
+  savedMap: { height: 220, minHeight: 210, borderRadius: 22 },
+  compassControl: {
+    position: "absolute",
+    top: 13,
+    left: 13,
+    width: 43,
+    height: 43,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFFF2",
+  },
+  locateControl: {
+    position: "absolute",
+    right: 13,
+    bottom: 13,
+    width: 43,
+    height: 43,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFFF2",
   },
   top: {
     position: "absolute",

@@ -12,8 +12,8 @@ never use driver OTP/password endpoints or admin credentials.
 ## Remaining backend work
 
 2. **Places and routing:** authenticated address search, reverse geocoding, road
-   routes, pickup validation and service area rules. Display actual coordinates
-   on a native/web map. Keep server routing credentials on the API and restrict
+   routes, pickup validation and service area rules. Native maps already show
+   selected coordinates; see [maps setup](MAPS_SETUP.md). Keep server routing credentials on the API and restrict
    any public map keys by platform. Ask for location only when needed.
 3. **Quotes:** server-owned category eligibility, price in integer minor units,
    ZAR currency, ETA, quote ID and expiry. Sample distance multipliers and prices
@@ -51,10 +51,11 @@ tested before replacing the local demo provider.
 - `src/state/PassengerProvider.tsx`: local, versioned demo persistence. Introduce
   a separate authenticated server provider for live use; never silently use the
   demo as a fallback when a live request fails.
-- `src/features/PlacePicker.tsx`: replace sample place filtering with the places
-  service while preserving loading/error/permission handling.
-- `src/ui/IllustratedMap.tsx`: decorative preview map. Replace with real map
-  rendering and authenticated route/driver data for live use.
+- `src/features/PlacePicker.tsx`: native Apple/Google autocomplete is integrated
+  through the local `vooma-places` module. Search uses the platform SDK; no
+  passenger backend search route or driver-authorized route is called.
+- `src/features/map/PassengerMap.tsx`: native Google/Apple maps and external
+  directions. Add authenticated route/driver data for live tracking.
 - `src/features/RideDetail.tsx`: demo actions and driver details. Replace with
   server-confirmed trip status and real communication capabilities.
 

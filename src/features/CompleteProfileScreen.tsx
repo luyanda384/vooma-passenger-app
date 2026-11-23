@@ -1,3 +1,4 @@
+import { dashboardColors } from "../ui/theme";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,7 +11,7 @@ export function CompleteProfileScreen() {
   const [name, setName] = useState(pending?.name ?? "");
   const [phone, setPhone] = useState("");
   const request = useAuthRequest();
-  return <SafeAreaView style={{ flex: 1, backgroundColor: "#EFF6FF" }}>
+  return <SafeAreaView style={{ flex: 1, backgroundColor: dashboardColors.tint }}>
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 26, gap: 20, maxWidth: 500, width: "100%", alignSelf: "center" }}>
         <Text accessibilityRole="header" style={ui.h1}>Complete your profile</Text>
