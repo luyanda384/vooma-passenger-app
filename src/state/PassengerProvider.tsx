@@ -46,7 +46,7 @@ export function PassengerProvider({ children, storageKey = STORAGE_KEY }: { chil
       .catch(() => {
         if (mounted.current && version === readVersion.current)
           setError(
-            "Your saved demo could not be loaded. Retry, or reset local demo data to start again.",
+            "Your saved data could not be loaded. Retry, or reset local data to start again.",
           );
       });
     return () => {
@@ -101,7 +101,7 @@ export function PassengerProvider({ children, storageKey = STORAGE_KEY }: { chil
       .catch(() => {
         if (mounted.current && version === readVersion.current)
           setError(
-            "Saved demo is still unavailable. Try again or reset local demo data.",
+            "Saved data is still unavailable. Try again or reset local data.",
           );
       });
   }

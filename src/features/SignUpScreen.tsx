@@ -18,14 +18,8 @@ import { passengerApi, type Challenge } from "../api/passenger";
 import { useAuthRequest } from "../api/useAuthRequest";
 import { VerifyEmailScreen } from "./VerifyEmailScreen";
 import { useAuth } from "../state/AuthProvider";
-import Svg, {
-  Defs,
-  G,
-  LinearGradient,
-  Path,
-  Rect,
-  Stop,
-} from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
+import { AccountBackground } from "../ui/AccountBackground";
 import {
   Button,
   Icon,
@@ -73,40 +67,6 @@ function GoogleMark() {
         d="M24 12.1c3 0 5.68 1.03 7.8 3.04l5.85-5.85A19.6 19.6 0 0 0 24 4a20.43 20.43 0 0 0-18.23 11.2l6.83 5.3c1.61-4.82 6.1-8.4 11.4-8.4Z"
       />
     </Svg>
-  );
-}
-
-function AccountBackground() {
-  return (
-    <View
-      pointerEvents="none"
-      style={StyleSheet.absoluteFill}
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
-      <Svg
-        width="100%"
-        height="100%"
-        preserveAspectRatio="xMidYMin slice"
-        viewBox="0 0 430 820"
-      >
-        <Defs>
-          <LinearGradient id="account-sky" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#F5F9FF" />
-            <Stop offset="0.55" stopColor="#EDF5FF" />
-            <Stop offset="1" stopColor="#E7F1FE" />
-          </LinearGradient>
-          <LinearGradient id="account-city" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#CBE1F6" stopOpacity=".4" />
-            <Stop offset="1" stopColor="#D9EAFB" stopOpacity="0" />
-          </LinearGradient>
-        </Defs>
-        <Rect width="430" height="820" fill="url(#account-sky)" />
-        <G fill="url(#account-city)">
-          <Path d="M64 195V96h9V88h7v8h9v99h7v-65h19v65h9V83h4V68h5v15h4v112h14v-53h15v53h12V116h14v-13h5v13h14v79h12V95h7v-8h6v8h10v100h13V82h6V71h6v11h10v113h13V59h6V49h4V29h3v20h4v10h6v136h8V98h10v-8h4v8h10v97h10v-53h8v-14h5v14h11v53h11v-84h18v84h11v-62h17v62Z" />
-        </G>
-      </Svg>
-    </View>
   );
 }
 
@@ -385,7 +345,7 @@ export function SignUpScreen({
       >
         <Text style={ui.body}>
           {policy === "Terms & Conditions"
-            ? "This development build supports passenger account testing. Rides and payments are demonstrations. Vooma’s full passenger terms have not yet been published here."
+            ? "Ride booking and payments are not available yet. Vooma’s full passenger terms have not yet been published here."
             : "Creating an account sends your name, email, phone number and password to Vooma API. Profile details are encrypted and passwords are hashed on the server. Mobile session tokens are saved in secure device storage; web sessions stay in memory. Google sign-in uses Supabase and sends a verified identity token to Vooma API. Demo trip history is stored locally for your account. This describes the development build; Vooma’s full privacy policy has not yet been published here."}
         </Text>
         <Button

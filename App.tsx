@@ -9,7 +9,8 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { dashboardColors } from "./src/ui/theme";
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Logo } from "./src/brand/Logo";
 import { HomeScreen } from "./src/features/HomeScreen";
 import { ActivityScreen } from "./src/features/ActivityScreen";
@@ -51,11 +52,13 @@ const tabs: { id: Tab; label: string; icon: IconName; activeIcon: IconName }[] =
     },
   ];
 function PassengerApp() {
+  const insets = useSafeAreaInsets();
   const { ready, error, retry, reset } = usePassenger();
   const { session } = useAuth();
   const [tab, setTab] = useState<Tab>("home");
   const [rideId, setRideId] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [navigationHeight, setNavigationHeight] = useState(90);
   const wide = useWindowDimensions().width >= 850;
   if (!ready)
     return (
@@ -66,17 +69,17 @@ function PassengerApp() {
             <Notice error>{error}</Notice>
             <Button label="Retry loading" onPress={retry} />
             <Button
-              label="Reset local demo data"
+              label="Reset local data"
               secondary
               onPress={() => setConfirmReset(true)}
             />
             <Sheet
               visible={confirmReset}
-              title="Reset saved demo?"
+              title="Reset saved data?"
               onClose={() => setConfirmReset(false)}
             >
               <Text style={ui.body}>
-                This deletes the saved passenger demo on this device, including
+                This deletes saved passenger data on this device, including
                 any trip history.
               </Text>
               <Button
@@ -144,7 +147,11 @@ function PassengerApp() {
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="dark" />
-      {(tab !== "home" || wide) && (
+      {((tab !== "home" &&
+        tab !== "rides" &&
+        tab !== "saved" &&
+        tab !== "profile") ||
+        wide) && (
         <View style={styles.header}>
           <View style={[styles.headerContent, wide && { paddingHorizontal: 30 }]}>
             <View style={{ gap: 5 }}>
@@ -152,34 +159,46 @@ function PassengerApp() {
               <Text style={styles.passenger}>PASSENGER</Text>
             </View>
             {wide && navigation}
-            <View style={styles.demoPill}>
-              <View style={styles.orangeDot} />
-              <Text style={styles.demoText}>DEMO MODE</Text>
-            </View>
+
           </View>
         </View>
       )}
-      <ScrollView
-        key={tab}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.content, wide && { padding: 30 }]}
-      >
-        {error !== "" && (
-          <View style={{ gap: 10 }}>
-            <Notice error>{error}</Notice>
-            <Button label="Retry saving" secondary onPress={retry} />
-          </View>
-        )}
-        {tab === "home" && (
-          <HomeScreen onRide={setRideId} />
-        )}
-        {tab === "rides" && (
-          <ActivityScreen onRide={setRideId} onBook={() => setTab("home")} />
-        )}
-        {tab === "saved" && <SavedScreen />}
-        {tab === "profile" && <ProfileScreen />}
-      </ScrollView>
-      {!wide && <View style={styles.bottomNav}>{navigation}</View>}
+      {tab === "home" ? (
+        <View style={{ flex: 1 }}>
+          {error !== "" && (
+            <View style={{ padding: 14, gap: 10 }}>
+              <Notice error>{error}</Notice>
+              <Button label="Retry saving" secondary onPress={retry} />
+            </View>
+          )}
+          <HomeScreen navigationInset={wide ? 0 : navigationHeight} />
+        </View>
+      ) : (
+        <ScrollView
+          key={tab}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.content}
+        >
+          {error !== "" && (
+            <View style={{ gap: 10 }}>
+              <Notice error>{error}</Notice>
+              <Button label="Retry saving" secondary onPress={retry} />
+            </View>
+          )}
+          {tab === "rides" && (
+            <ActivityScreen onRide={setRideId} onBook={() => setTab("home")} />
+          )}
+          {tab === "saved" && <SavedScreen />}
+          {tab === "profile" && <ProfileScreen onSaved={() => setTab("saved")} />}
+        </ScrollView>
+      )}
+      {!wide && (
+        <View
+          pointerEvents="box-none"
+          onLayout={(event) => setNavigationHeight(event.nativeEvent.layout.height)}
+          style={[styles.bottomNav, tab === "home" && [styles.homeNavOverlay, { bottom: insets.bottom }]]}
+        >{navigation}</View>
+      )}
       {rideId && <RideDetail id={rideId} onClose={() => setRideId(null)} />}
     </SafeAreaView>
   );
@@ -204,7 +223,7 @@ function AccountApp() {
   </PassengerProvider>;
 }
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.tint },
+  root: { flex: 1, backgroundColor: dashboardColors.tint },
   loading: {
     flex: 1,
     alignItems: "center",
@@ -236,34 +255,13 @@ const styles = StyleSheet.create({
     marginLeft: 41,
     fontWeight: "600",
   },
-  demoPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#FFF3E4",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  demoText: {
-    fontSize: 9,
-    fontWeight: "700",
-    color: "#804600",
-    letterSpacing: 1,
-  },
-  orangeDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: c.orange,
-  },
   content: {
     width: "100%",
-    maxWidth: 1180,
+    maxWidth: 760,
     alignSelf: "center",
-    padding: 20,
+    paddingHorizontal: 14,
     paddingBottom: 30,
-    gap: 20,
+    gap: 14,
   },
   bottomNav: {
     paddingHorizontal: 14,
@@ -271,6 +269,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     backgroundColor: c.tint,
   },
+  homeNavOverlay: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "transparent" },
   tabs: {
     flexDirection: "row",
     gap: 4,

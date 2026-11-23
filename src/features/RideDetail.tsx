@@ -1,3 +1,4 @@
+import { dashboardColors as c } from "../ui/theme";
 import { useState } from "react";
 import { Pressable, Share, Text, View } from "react-native";
 import {
@@ -13,8 +14,8 @@ import {
   type RideStatus,
 } from "../domain/passenger";
 import { usePassenger } from "../state/PassengerProvider";
-import { Button, c, Icon, Notice, Sheet, ui } from "../ui/components";
-import { IllustratedMap } from "../ui/IllustratedMap";
+import { Button, Icon, Notice, Sheet, ui } from "../ui/components";
+import { PassengerMap } from "./map/PassengerMap";
 
 const copy: Record<
   RideStatus,
@@ -117,9 +118,7 @@ export function RideDetail({
       <Text style={ui.h1}>{step.title}</Text>
       <Text style={ui.body}>{step.detail}</Text>
       {isActive(ride) && (
-        <View style={{ height: 240 }}>
-          <IllustratedMap route />
-        </View>
+        <PassengerMap pickup={ride.pickup} destination={ride.destination} />
       )}
       {driverVisible && (
         <View style={[ui.card, { padding: 16 }]}>

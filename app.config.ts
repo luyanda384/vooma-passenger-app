@@ -9,6 +9,9 @@ const config: ExpoConfig = {
   userInterfaceStyle: "light",
   icon: "./assets/brand/icon.png",
   backgroundColor: "#FFFFFF",
+  extra: {
+    googleMapsAndroid: !!process.env.GOOGLE_MAPS_ANDROID_API_KEY,
+  },
   ios: { supportsTablet: true, bundleIdentifier: "com.vooma.passenger" },
   android: {
     package: "com.vooma.passenger",
@@ -22,6 +25,12 @@ const config: ExpoConfig = {
     ],
   },
   plugins: [
+    [
+      "react-native-maps",
+      {
+        androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_ANDROID_API_KEY,
+      },
+    ],
     "expo-web-browser",
     "expo-secure-store",
     [
