@@ -14,7 +14,7 @@ import { dashboardColors } from "./src/ui/theme";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Logo } from "./src/brand/Logo";
 import { HomeScreen } from "./src/features/HomeScreen";
-import { ActivityScreen } from "./src/features/ActivityScreen";
+import { LiveActivityScreen } from "./src/features/LiveActivityScreen";
 import { SavedScreen } from "./src/features/SavedScreen";
 import { ProfileScreen } from "./src/features/ProfileScreen";
 import { RideDetail } from "./src/features/RideDetail";
@@ -190,7 +190,7 @@ function PassengerApp() {
             </View>
           )}
           {tab === "rides" && (
-            <ActivityScreen onRide={setRideId} onBook={() => setTab("home")} />
+            <LiveActivityScreen onBook={() => setTab("home")} />
           )}
           {tab === "saved" && <SavedScreen />}
           {tab === "profile" && <ProfileScreen onSaved={() => setTab("saved")} />}

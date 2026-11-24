@@ -71,7 +71,10 @@ export function MapCanvas({
         new api.Marker({
           map: map.current,
           position: point(car.location),
-          title: `Vooma ${car.category} · ${car.pickupSeconds === null ? `${(car.distanceMeters / 1000).toFixed(1)} km away` : `${Math.max(1, Math.ceil(car.pickupSeconds / 60))} min to pickup`}`,
+          title:
+            car.id === "assigned-driver"
+              ? "Your driver’s live location"
+              : `Vooma ${car.category} · ${car.pickupSeconds === null ? `${(car.distanceMeters / 1000).toFixed(1)} km away` : `${Math.max(1, Math.ceil(car.pickupSeconds / 60))} min to pickup`}`,
           label: "🚗",
         }),
       );
@@ -132,7 +135,7 @@ export function MapCanvas({
       ]}
     >
       <Icon name="map-outline" />
-      {pickup && destination && (
+      {pickup && (
         <Text style={ui.small}>
           {cars.length} available cars in this view. Open the Android or iOS app
           to see car markers.

@@ -10,9 +10,9 @@ Vooma passenger sessions are separate from driver/admin credentials, last one
 hour, and are saved in native secure storage. Web sessions stay in memory and
 end on reload. Phone numbers are recorded but not verified.
 
-Booking, dispatch, fares and payments remain an explicitly labelled local demo.
-Authentication errors never grant demo access. Passenger demo history is scoped
-to the authenticated account.
+Nearby cars, requests, driver acceptance, trip status, cancellation and recent
+ride history now use the sibling API. Authentication errors never grant demo
+access. Automatic fare calculation and payments are not connected.
 
 See [authentication setup](docs/AUTH_SETUP.md) for environment variables, local
 email testing, Supabase Google configuration and native callback setup.
@@ -57,9 +57,9 @@ is already using port 8081, run `npm.cmd run web -- --port 8087` instead.
 Home and active trips display native Google/Apple maps with selected pickup and
 destination markers, recentering, and external directions. See
 [maps setup](docs/MAPS_SETUP.md) for Android/iOS keys and Expo Go behavior.
-After a destination is selected and a pickup is available, Home shows nearby
-approved online cars, their Go/Comfort/XL categories,
-counts and known driving pickup estimates. It refreshes every 15 seconds and
+Home shows nearby approved online car markers as soon as pickup is available.
+After a destination is selected, Go/Comfort/XL category cards, counts, known
+pickup estimates and a Request button appear. It refreshes every five seconds and
 hides driver fixes older than 30 seconds. Category selection filters the map.
 The API searches within 5 km, expanding to 10 km when initial supply is empty;
 known pickups over 15 minutes are excluded. These are configurable Vooma limits.
@@ -74,7 +74,10 @@ authenticated API's `GOOGLE_PLACES_API_KEY`. For browser map markers configure
 `EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY` with Maps JavaScript API and referrer
 restrictions. Without a browser map key, category availability still works.
 See the API's `docs/passenger-discovery.md` for setup and the shared contract.
-Booking, dispatch and payments are not connected.
+Requests reach eligible nearby drivers; acceptance, arrival, start, completion
+and cancellation are shared between apps. Rides displays real server records.
+Payments are not connected. Driver Expo Go must stay foregrounded to keep its
+location and request polling alive.
 
 ## Storage
 

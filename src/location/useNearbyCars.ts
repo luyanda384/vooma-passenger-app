@@ -58,7 +58,7 @@ export function useNearbyCars(pickup: Place | null) {
       }
     }
     void refresh();
-    const timer = setInterval(() => void refresh(), 15000);
+    const timer = setInterval(() => void refresh(), 5000);
     const expiry = setInterval(
       () =>
         setState((previous) => {
@@ -102,7 +102,7 @@ export function useNearbyCars(pickup: Place | null) {
       clearInterval(expiry);
       listener.remove();
     };
-    // GPS jitter updates the next request's origin without restarting the 15s poll.
+    // GPS jitter updates the next request's origin without restarting the 5s poll.
   }, [token, pickupId, attempt, key]);
   return {
     data: state.key === key ? state.data : null,

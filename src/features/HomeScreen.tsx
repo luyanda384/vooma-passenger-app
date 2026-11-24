@@ -18,6 +18,9 @@ import { dashboardColors as c } from "../ui/theme";
 import { MapCanvas } from "./map/MapCanvas";
 import { PlacePicker } from "./PlacePicker";
 import { useLivePickup } from "../location/useLivePickup";
+import { useRide } from "../location/useRide";
+import { rideActive } from "../api/rides";
+import { LiveRideCard } from "./LiveRideCard";
 
 export function HomeScreen({
   navigationInset = 0,
@@ -28,10 +31,47 @@ export function HomeScreen({
   const [manualPickup, setManualPickup] = useState<Place | null>(null);
   const location = useLivePickup({ enabled: manualPickup === null });
   const pickup = manualPickup ?? location.pickup;
+  const trip = useRide();
+  const active = rideActive(trip.ride);
   const [destination, setDestination] = useState<Place | null>(null);
-  const showNearby = pickup !== null && destination !== null;
-  const nearby = useNearbyCars(showNearby ? pickup : null);
+  const showNearby = pickup !== null && destination !== null && !active;
+  const nearby = useNearbyCars(pickup);
   const [category, setCategory] = useState<ServiceId | null>(null);
+  const selectedCategory =
+    category ??
+    nearby.data?.categories.find((item) => item.available > 0)?.id ??
+    "go";
+  const selectedAvailability =
+    nearby.data?.categories.find((item) => item.id === selectedCategory)
+      ?.available ?? 0;
+  const mapPickup =
+    active && trip.ride ? { ...trip.ride.pickup, id: "ride-pickup" } : pickup;
+  const mapDestination =
+    active && trip.ride
+      ? { ...trip.ride.destination, id: "ride-destination" }
+      : destination;
+  const assignedLocation = trip.ride?.driver?.location;
+  const assignedCars =
+    active &&
+    trip.ride &&
+    assignedLocation &&
+    Date.now() - assignedLocation.capturedAt <= 30000
+      ? [
+          {
+            id: "assigned-driver",
+            category: trip.ride.category,
+            bodyType: null,
+            location: {
+              latitude: assignedLocation.latitude,
+              longitude: assignedLocation.longitude,
+            },
+            capturedAt: assignedLocation.capturedAt,
+            distanceMeters: 0,
+            pickupSeconds: null,
+            pickupDistanceMeters: null,
+          },
+        ]
+      : [];
   const [viewportHeight, setViewportHeight] = useState(height - 140);
   const [headerHeight, setHeaderHeight] = useState(88);
   const [searchHeight, setSearchHeight] = useState(60);
@@ -39,10 +79,11 @@ export function HomeScreen({
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [error, setError] = useState("");
   const [recenter, setRecenter] = useState(0);
-  const mapHeight = showNearby
-    ? Math.max(280, Math.min(420, viewportHeight - headerHeight - 230))
-    : Math.max(280, viewportHeight - headerHeight - 20);
-  const searchBottom = showNearby ? 16 : navigationInset + 36;
+  const mapHeight =
+    showNearby || active
+      ? Math.max(280, Math.min(420, viewportHeight - headerHeight - 230))
+      : Math.max(280, viewportHeight - headerHeight - 20);
+  const searchBottom = showNearby || active ? 16 : navigationInset + 36;
   const locating = location.status === "checking" || location.status === "idle";
 
   function refreshLocation() {
@@ -84,6 +125,7 @@ export function HomeScreen({
               accessibilityRole="button"
               accessibilityLabel={`Change pickup: ${pickup?.name ?? "Current location"}`}
               onPress={() => setPicker("pickup")}
+              disabled={active}
               style={styles.cityButton}
             >
               <Icon name="location" size={25} color={c.ink} />
@@ -125,20 +167,20 @@ export function HomeScreen({
         <View style={styles.mapSection}>
           <View style={styles.mapFrame}>
             <MapCanvas
-              radiusMeters={showNearby ? nearby.data?.radiusMeters : undefined}
+              radiusMeters={nearby.data?.radiusMeters}
               cars={
-                showNearby
-                  ? (nearby.data?.cars.filter(
-                      (car) => category === null || car.category === category,
+                active
+                  ? assignedCars
+                  : (nearby.data?.cars.filter(
+                      (car) => !showNearby || car.category === selectedCategory,
                     ) ?? [])
-                  : []
               }
-              pickup={pickup}
-              destination={destination}
+              pickup={mapPickup}
+              destination={mapDestination}
               recenter={recenter}
               height={mapHeight}
               overlayBottom={searchBottom + searchHeight + 16}
-              navigationInset={showNearby ? 0 : navigationInset}
+              navigationInset={showNearby || active ? 0 : navigationInset}
             />
             {!pickup && (
               <View style={styles.locationNotice}>
@@ -202,6 +244,7 @@ export function HomeScreen({
                 : "Where to?"
             }
             onPress={() => setPicker("destination")}
+            disabled={active}
             style={[styles.search, { bottom: searchBottom }]}
             onLayout={(event) =>
               setSearchHeight(event.nativeEvent.layout.height)
@@ -212,7 +255,7 @@ export function HomeScreen({
               numberOfLines={1}
               style={[styles.searchText, !destination && { color: c.muted }]}
             >
-              {destination?.name ?? "Where to?"}
+              {mapDestination?.name ?? "Where to?"}
             </Text>
             {destination && (
               <Icon name="chevron-forward" size={18} color={c.muted} />
@@ -220,13 +263,52 @@ export function HomeScreen({
           </Pressable>
         </View>
 
+        {trip.ride && (
+          <View style={{ paddingBottom: active ? navigationInset + 24 : 0 }}>
+            <LiveRideCard
+              ride={trip.ride}
+              busy={trip.busy}
+              onCancel={trip.cancel}
+            />
+          </View>
+        )}
+        {!!trip.error && (
+          <View style={{ gap: 8 }}>
+            <Notice error>{trip.error}</Notice>
+            <Button
+              label="Refresh ride status"
+              secondary
+              onPress={trip.refresh}
+            />
+          </View>
+        )}
         {showNearby && (
           <View style={{ paddingBottom: navigationInset + 24 }}>
             <NearbyCars
               {...nearby}
-              selected={category}
-              onSelect={setCategory}
+              selected={selectedCategory}
+              onSelect={(value) => setCategory(value ?? selectedCategory)}
             />
+            <View style={{ paddingTop: 12, gap: 8 }}>
+              <Button
+                label={`Request ${selectedCategory === "go" ? "Vooma Go" : selectedCategory === "xl" ? "Vooma XL" : "Vooma Comfort"}`}
+                busy={trip.busy}
+                disabled={
+                  !trip.ready || !!trip.error || selectedAvailability < 1
+                }
+                onPress={() => {
+                  if (pickup && destination)
+                    trip.request(pickup, destination, selectedCategory);
+                }}
+              />
+              {!trip.ready && (
+                <Text style={ui.small}>Checking your current ride…</Text>
+              )}
+              <Text style={ui.small}>
+                Your request is confirmed when a driver accepts. Payments are
+                not collected in this app yet.
+              </Text>
+            </View>
           </View>
         )}
         {error !== "" && <Notice error>{error}</Notice>}

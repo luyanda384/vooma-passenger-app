@@ -9,6 +9,7 @@ jest.mock("expo-location", () => ({
   requestForegroundPermissionsAsync: jest.fn(),
   hasServicesEnabledAsync: jest.fn(async () => true),
   watchPositionAsync: jest.fn(),
+  getCurrentPositionAsync: jest.fn(() => new Promise(() => {})),
 }));
 const remove = jest.fn();
 beforeEach(() => {
@@ -24,6 +25,34 @@ beforeEach(() => {
 });
 
 afterEach(() => jest.restoreAllMocks());
+
+test("stationary passengers retain a real fresh pickup", async () => {
+  jest.useFakeTimers();
+  Object.defineProperty(AppState, "currentState", {
+    configurable: true,
+    value: "active",
+  });
+  jest
+    .mocked(Location.getCurrentPositionAsync)
+    .mockImplementation(
+      async () =>
+        ({
+          timestamp: Date.now(),
+          coords: { latitude: -26.1, longitude: 28.05, accuracy: 5 },
+        }) as Location.LocationObject,
+    );
+  const hook = renderHook(() => useLocation({ autoStart: true }));
+  await act(async () => {});
+  const first = hook.result.current.fix!.timestamp;
+  await act(async () => jest.advanceTimersByTime(10000));
+  expect(hook.result.current.fix!.timestamp).toBeGreaterThan(first);
+  expect(hook.result.current.status).toBe("ready");
+  hook.unmount();
+  jest.useRealTimers();
+  jest
+    .mocked(Location.getCurrentPositionAsync)
+    .mockImplementation(() => new Promise(() => {}));
+});
 
 test("iOS inactive overlays keep GPS running; background and foreground restart it", async () => {
   let changeState: (state: AppStateStatus) => void = () => {};

@@ -161,9 +161,9 @@ test("GPS updates use the latest pickup on the next poll without increasing the 
   expect(loadNearby).toHaveBeenCalledTimes(1);
   const moved = { ...places[0], latitude: places[0].latitude + 0.01 };
   hook.rerender({ pickup: moved });
-  await act(async () => jest.advanceTimersByTime(5000));
+  await act(async () => jest.advanceTimersByTime(4000));
   expect(loadNearby).toHaveBeenCalledTimes(1);
-  await act(async () => jest.advanceTimersByTime(10000));
+  await act(async () => jest.advanceTimersByTime(1000));
   expect(loadNearby).toHaveBeenLastCalledWith(
     { latitude: moved.latitude, longitude: moved.longitude },
     "passenger-token",

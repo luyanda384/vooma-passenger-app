@@ -7,6 +7,7 @@ import {
 import { HomeScreen } from "../features/HomeScreen";
 import { placeSearch } from "../places/service";
 import type { NearbyCar } from "../api/discovery";
+import type { LiveRide } from "../api/rides";
 import {
   initialState,
   places,
@@ -25,6 +26,20 @@ const currentPickup: Place = {
   name: "Current location",
 };
 let mockLivePickup: Place | null = currentPickup;
+let mockRide: LiveRide | null = null;
+const mockRequest = jest.fn(),
+  mockCancel = jest.fn();
+jest.mock("../location/useRide", () => ({
+  useRide: () => ({
+    ride: mockRide,
+    ready: true,
+    busy: false,
+    error: "",
+    refresh: jest.fn(),
+    request: mockRequest,
+    cancel: mockCancel,
+  }),
+}));
 const nearbyCar: NearbyCar = {
   id: "nearby-car",
   category: "comfort",
@@ -106,6 +121,7 @@ jest.mock("expo-crypto", () => ({ randomUUID: () => "test-search-session" }));
 
 const now = Date.parse("2026-11-20T10:00:00Z");
 beforeEach(() => {
+  mockRide = null;
   mockLivePickup = currentPickup;
   jest.mocked(placeSearch.suggest).mockImplementation(async (query) =>
     places
@@ -130,12 +146,12 @@ function mapProps() {
   return mockMap.mock.calls[mockMap.mock.calls.length - 1][0];
 }
 
-test("nearby cars and categories appear only after choosing a destination", async () => {
+test("nearby cars appear immediately while categories wait for a destination", async () => {
   render(<HomeScreen />);
   expect(screen.queryByText("Cars near your pickup")).toBeNull();
   expect(screen.queryByText("Vooma Comfort")).toBeNull();
-  expect(mapProps().cars).toEqual([]);
-  expect(mockNearby).toHaveBeenLastCalledWith(null);
+  expect(mapProps().cars).toEqual([nearbyCar]);
+  expect(mockNearby).toHaveBeenLastCalledWith(currentPickup);
   fireEvent.press(screen.getByRole("button", { name: "Where to?" }));
   expect(screen.queryByText("Cars near your pickup")).toBeNull();
   fireEvent.press(
@@ -159,7 +175,7 @@ async function chooseDestination() {
   await waitFor(() => expect(mapProps().destination).toEqual(places[1]));
 }
 
-test("destination selection updates the map without offering or creating a demo request", async () => {
+test("a passenger can request the selected real category without creating a local demo ride", async () => {
   render(<HomeScreen />);
   await chooseDestination();
   expect(mapProps()).toMatchObject({
@@ -173,6 +189,40 @@ test("destination selection updates the map without offering or creating a demo 
   expect(screen.queryByText(/Demo only/)).toBeNull();
   expect(mockPassengerState.rides).toHaveLength(0);
   expect(mockUpdate).not.toHaveBeenCalled();
+  fireEvent.press(
+    screen.getByRole("button", { name: "Request Vooma Comfort" }),
+  );
+  expect(mockRequest).toHaveBeenCalledWith(currentPickup, places[1], "comfort");
+});
+
+test("an accepted ride restores driver details and exposes cancellation", () => {
+  mockRide = {
+    id: "ride-live",
+    status: "matched",
+    category: "comfort",
+    version: 2,
+    createdAt: now,
+    updatedAt: now,
+    expiresAt: now + 120000,
+    pickup: places[0],
+    destination: places[1],
+    driver: {
+      name: "Test Driver",
+      vehicle: {
+        plate: "TEST 123 GP",
+        make: "Example",
+        model: "Car",
+        colour: "white",
+      },
+      location: { latitude: -26.11, longitude: 28.05, capturedAt: now },
+    },
+  };
+  render(<HomeScreen />);
+  expect(screen.getByText("Your driver is on the way")).toBeTruthy();
+  expect(screen.getByText(/TEST 123 GP/)).toBeTruthy();
+  fireEvent.press(screen.getByRole("button", { name: "Cancel ride" }));
+  expect(mockCancel).toHaveBeenCalled();
+  expect(mapProps().cars?.[0].id).toBe("assigned-driver");
 });
 
 test("a manually chosen pickup stays fixed despite GPS movement", async () => {

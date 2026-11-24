@@ -29,6 +29,7 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -86,6 +87,25 @@ export function createPassengerApi(baseUrl: () => string = configuredUrl) {
         credentials: "omit",
       });
       if (!response.ok) {
+        if (path.includes("/rides")) {
+          let code: string | undefined;
+          try {
+            code = (await response.json()).error?.code;
+          } catch {}
+          const message =
+            code === "noDrivers"
+              ? "No cars in this category are available nearby. Please choose another category or try again."
+              : code === "activeRide"
+                ? "You already have an active ride. Your current ride will be restored."
+                : response.status === 401
+                  ? "Your session expired. Sign in again."
+                  : response.status === 409
+                    ? "This ride has changed. Refresh and try again."
+                    : response.status === 429
+                      ? "Please wait before trying again."
+                      : "Could not update your ride. Please try again.";
+          throw new ApiError(response.status, message, code);
+        }
         if (path.includes("/nearby") || path.includes("/places/"))
           throw new ApiError(
             response.status,
@@ -124,6 +144,8 @@ export function createPassengerApi(baseUrl: () => string = configuredUrl) {
     }
   }
   return {
+    ride: (path: string, token: string, body?: object, signal?: AbortSignal) =>
+      request<unknown>(path, body, token, signal),
     discovery: (
       path: string,
       input: object,

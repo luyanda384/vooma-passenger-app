@@ -146,12 +146,17 @@ export function MapCanvas({
               identifier={`car-${car.id}`}
               coordinate={car.location}
               title={
-                services.find((s) => s.id === car.category)?.name ?? "Vooma"
+                car.id === "assigned-driver"
+                  ? "Your driver"
+                  : (services.find((s) => s.id === car.category)?.name ??
+                    "Vooma")
               }
               description={
-                car.pickupSeconds === null
-                  ? `${(car.distanceMeters / 1000).toFixed(1)} km away · ETA unavailable`
-                  : `${Math.max(1, Math.ceil(car.pickupSeconds / 60))} min to pickup`
+                car.id === "assigned-driver"
+                  ? "Your driver’s live location"
+                  : car.pickupSeconds === null
+                    ? `${(car.distanceMeters / 1000).toFixed(1)} km away · ETA unavailable`
+                    : `${Math.max(1, Math.ceil(car.pickupSeconds / 60))} min to pickup`
               }
               accessibilityLabel={`Available ${car.category} car`}
             >

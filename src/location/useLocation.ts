@@ -11,22 +11,65 @@ const foregroundLocation: LocationPort = {
     return { granted: result.granted, canAskAgain: result.canAskAgain };
   },
   enabled: () => Location.hasServicesEnabledAsync(),
-  watch: (onFix, onError) =>
-    Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.High,
-        timeInterval: 5000,
-        distanceInterval: 0,
-      },
-      (position) =>
+  watch: async (onFix, onError) => {
+    let closed = false,
+      busy = false,
+      latestTimestamp = 0;
+    const publish = (position: Location.LocationObject) => {
+      if (
+        !closed &&
+        Number.isFinite(position.timestamp) &&
+        position.timestamp >= latestTimestamp &&
+        position.timestamp <= Date.now() + 5000
+      ) {
+        latestTimestamp = position.timestamp;
         onFix({
           timestamp: position.timestamp,
           accuracy: position.coords.accuracy,
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
-        }),
+        });
+      }
+    };
+    const subscription = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 5000,
+        distanceInterval: 0,
+      },
+      publish,
       onError,
-    ),
+    );
+    async function refresh() {
+      if (
+        closed ||
+        busy ||
+        (AppState.currentState && AppState.currentState !== "active")
+      )
+        return;
+      busy = true;
+      try {
+        publish(
+          await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+          }),
+        );
+      } catch {
+        /* Keep watching; stale coordinates are never re-dated. */
+      } finally {
+        busy = false;
+      }
+    }
+    void refresh();
+    const timer = setInterval(() => void refresh(), 10000);
+    return {
+      remove() {
+        closed = true;
+        clearInterval(timer);
+        subscription.remove();
+      },
+    };
+  },
 };
 
 export function useLocation({ autoStart = false } = {}) {
