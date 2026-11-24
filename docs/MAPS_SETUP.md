@@ -4,6 +4,10 @@ Home and active trip details use `react-native-maps`, the same native library as
 the driver app. Markers show the selected pickup and destination. The camera
 fits both endpoints and the recenter button restores that view.
 
+Assigned rides show the driver's live car, road distance and traffic-aware ETA in the ride card. The map frames driver and pickup, then driver and destination after the trip starts. Positions interpolate briefly between received GPS fixes and rotate with movement; reduced-motion settings are respected. Google renderers draw the server route; MapKit shows the car and attributed estimates without Google geometry. GPS and ETA expire locally after 30 seconds so a network interruption cannot leave a stale live marker. Nearby-driver discovery pauses during an active request/trip.
+
+The API needs `GOOGLE_ROUTES_API_KEY` with Routes API enabled. No key or a provider failure leaves live positioning available with an explicit unavailable ETA. These are traffic-aware estimates, not guaranteed arrival times. Driver GPS uploads are currently foreground-only; switching the driver app to external navigation pauses updates until Vooma returns to the foreground.
+
 Home shows a rounded map sized to the available screen below its pickup header and greeting,
 with destination search overlaid above the navbar. Demo request, fare and
 scheduling controls have been removed from Home; selecting a destination only
@@ -19,8 +23,8 @@ navbar's appearance is unchanged.
 | Android Expo Go                 | Google Maps, using Expo Go's configuration                         |
 | Android development/store build | Google Maps; requires the Android key                              |
 | iOS Expo Go                     | Apple Maps (MapKit); Google native SDK is unavailable in this host |
-| iOS development/store build     | Apple Maps; no Google key required                                 |
-| Web                             | Selected-place card and Google Maps link; no native SDK import     |
+| iOS development/store build     | Google Maps with `GOOGLE_MAPS_IOS_API_KEY`; otherwise Apple Maps   |
+| Web                             | Google Maps with browser key; selected-place fallback without it   |
 
 The map button opens Apple Maps on iOS and Google Maps on Android/web, showing
 the selected pickup or driving directions between the selected endpoints using
@@ -35,6 +39,7 @@ Set this in the passenger project's local `.env` or build environment:
 
 ```dotenv
 GOOGLE_MAPS_ANDROID_API_KEY=YOUR_RESTRICTED_ANDROID_KEY
+GOOGLE_MAPS_IOS_API_KEY=YOUR_RESTRICTED_IOS_KEY
 ```
 
 Enable Maps SDK for Android and Places API (New) in the same billing-enabled Google Cloud project.
@@ -45,9 +50,9 @@ restrictions do not automatically authorize the passenger app. The native SDK
 reads the existing Android manifest key; it is not exposed to JavaScript.
 Do not put server routing credentials into this client.
 
-`app.config.ts` supplies the Android key to the native config plugin and exposes
-only a configuration boolean through `extra`. iOS always uses Apple Maps,
-including when an old iOS Google key is present in the environment.
+`app.config.ts` supplies Android/iOS keys to the native config plugin and exposes
+only configuration booleans through `extra`. iOS Expo Go always uses Apple Maps;
+development/store builds use Google when the iOS key is configured.
 Rebuild the native app after adding or
 changing a key; restarting Metro cannot update the installed binary. Expo Go
 uses its own native configuration. No keys are committed in this repository.
@@ -113,17 +118,16 @@ or leaving Home and resumes with a new permission check on returning to the
 foreground. iOS temporary inactive states, including permission dialogs, do
 not interrupt a pending location request. No background tracking is enabled.
 
-Booking, fares and driver dispatch are not connected. The embedded map shows endpoints,
-not an invented road route. Real directions are available in the external map
-app. Server routing and live driver tracking still
-need passenger-authorized backend integration.
+Live requests, assignment and tracking use passenger-authorized ride endpoints.
+Google maps draw actual provider route geometry. MapKit keeps live car markers
+and distance/ETA without drawing Google geometry. Fare calculation remains separate.
 
 ## Verify on devices
 
 - Android Expo Go and a signed Android build: tiles, markers, endpoint framing,
   recenter, directions, and missing/invalid key behavior.
 - iPhone Expo Go: Apple map without attempting to load the Google native SDK.
-- iOS development/store builds: Apple map and Apple directions.
+- iOS development/store builds: Google map/route with the configured iOS key, Apple fallback without it.
 - In native builds: search partial street names, businesses and suburbs in all
   three pickers; select results and verify coordinates. Save, restart and select a
   favourite. Test rapid typing, empty results, offline recovery and dismissal.

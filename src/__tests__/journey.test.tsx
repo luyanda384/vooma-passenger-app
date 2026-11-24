@@ -1,3 +1,49 @@
+import { decodeRide } from "../api/rides";
+import { places } from "../domain/passenger";
+
+// The legacy demo journeys below remain archived; exercise the live ride contract.
+test("a live journey carries pickup and destination estimates through real trip stages", () => {
+  const now = Date.now();
+  const ride = {
+    id: "journey",
+    status: "matched",
+    category: "go",
+    version: 2,
+    createdAt: now,
+    updatedAt: now,
+    expiresAt: now + 120000,
+    pickup: places[0],
+    destination: places[1],
+    driver: null,
+    tracking: {
+      provider: "google",
+      target: "pickup",
+      origin: { latitude: -26.1, longitude: 28.05 },
+      durationSeconds: 240,
+      distanceMeters: 1800,
+      encodedPolyline: "_p~iF~ps|U_ulLnnqC_mqNvxq`@",
+      calculatedAt: now,
+      expiresAt: now + 30000,
+    },
+  };
+  expect(decodeRide({ ride })?.tracking?.target).toBe("pickup");
+  expect(
+    decodeRide({
+      ride: {
+        ...ride,
+        status: "in_progress",
+        version: 4,
+        tracking: { ...ride.tracking, target: "destination" },
+      },
+    })?.tracking?.target,
+  ).toBe("destination");
+  expect(
+    decodeRide({
+      ride: { ...ride, status: "completed", version: 5, tracking: null },
+    })?.tracking,
+  ).toBeNull();
+});
+
 // import {
 //   act,
 //   configure,

@@ -1,5 +1,6 @@
 import type { Place } from "../../domain/passenger";
 import type { NearbyCar } from "../../api/discovery";
+import type { RideTracking } from "../../api/ride-tracking";
 
 export type PassengerMapProps = {
   pickup: Place;
@@ -7,6 +8,8 @@ export type PassengerMapProps = {
 };
 export type MapCanvasProps = Omit<PassengerMapProps, "pickup"> & {
   cars?: NearbyCar[];
+  tracking?: RideTracking | null;
+  trackingTarget?: "pickup" | "destination";
   radiusMeters?: number;
   pickup: Place | null;
   recenter: number;
@@ -17,13 +20,14 @@ export type MapCanvasProps = Omit<PassengerMapProps, "pickup"> & {
 };
 export type MapProvider = "google" | "apple";
 
-// iOS always uses MapKit; Android uses Google Maps.
+// Expo Go on iOS uses MapKit; configured development/store builds use Google.
 export function nativeMapProvider(
   platform: string,
   expoGo: boolean,
-  configured: { googleMapsAndroid?: boolean },
+  configured: { googleMapsAndroid?: boolean; googleMapsIos?: boolean },
 ): MapProvider | null {
-  if (platform === "ios") return "apple";
+  if (platform === "ios")
+    return !expoGo && configured.googleMapsIos ? "google" : "apple";
   if (platform === "android")
     return expoGo || configured.googleMapsAndroid ? "google" : null;
   return null;

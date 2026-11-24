@@ -35,7 +35,7 @@ export function HomeScreen({
   const active = rideActive(trip.ride);
   const [destination, setDestination] = useState<Place | null>(null);
   const showNearby = pickup !== null && destination !== null && !active;
-  const nearby = useNearbyCars(pickup);
+  const nearby = useNearbyCars(active ? null : pickup);
   const [category, setCategory] = useState<ServiceId | null>(null);
   const selectedCategory =
     category ??
@@ -66,9 +66,9 @@ export function HomeScreen({
               longitude: assignedLocation.longitude,
             },
             capturedAt: assignedLocation.capturedAt,
-            distanceMeters: 0,
-            pickupSeconds: null,
-            pickupDistanceMeters: null,
+            distanceMeters: trip.ride.tracking?.distanceMeters ?? 0,
+            pickupSeconds: trip.ride.tracking?.durationSeconds ?? null,
+            pickupDistanceMeters: trip.ride.tracking?.distanceMeters ?? null,
           },
         ]
       : [];
@@ -167,6 +167,10 @@ export function HomeScreen({
         <View style={styles.mapSection}>
           <View style={styles.mapFrame}>
             <MapCanvas
+              tracking={active ? trip.ride?.tracking : null}
+              trackingTarget={
+                trip.ride?.status === "in_progress" ? "destination" : "pickup"
+              }
               radiusMeters={nearby.data?.radiusMeters}
               cars={
                 active

@@ -4,10 +4,16 @@ import { randomUUID } from "expo-crypto";
 import { useAuth } from "../state/AuthProvider";
 import { ridesApi, type LiveRide } from "../api/rides";
 import type { Place, ServiceId } from "../domain/passenger";
+import { freshTracking } from "../api/ride-tracking";
 
 export function useRide() {
   const { session } = useAuth();
   const token = session?.accessToken;
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
   const live = useRef(token);
   live.current = token;
   const [state, setState] = useState<{
@@ -111,7 +117,27 @@ export function useRide() {
     }
   }
   return {
-    ride: state.token === token ? state.ride : null,
+    ride:
+      state.token === token && state.ride
+        ? {
+            ...state.ride,
+            tracking:
+              state.ride.driver?.location &&
+              now - state.ride.driver.location.capturedAt <= 30000
+                ? freshTracking(state.ride.tracking, now)
+                : null,
+            driver: state.ride.driver
+              ? {
+                  ...state.ride.driver,
+                  location:
+                    state.ride.driver.location &&
+                    now - state.ride.driver.location.capturedAt <= 30000
+                      ? state.ride.driver.location
+                      : null,
+                }
+              : null,
+          }
+        : null,
     ready: state.token === token && state.ready,
     busy,
     error:

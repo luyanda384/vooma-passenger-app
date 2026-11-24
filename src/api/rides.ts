@@ -1,5 +1,6 @@
 import { passengerApi, ApiError } from "./passenger";
 import type { Place, ServiceId } from "../domain/passenger";
+import { decodeTracking, type RideTracking } from "./ride-tracking";
 export type LiveRide = {
   id: string;
   status:
@@ -11,6 +12,7 @@ export type LiveRide = {
     | "cancelled"
     | "expired";
   category: ServiceId;
+  tracking?: RideTracking | null;
   version: number;
   createdAt: number;
   updatedAt: number;
@@ -85,7 +87,7 @@ export function decodeRide(value: unknown): LiveRide | null {
     )
       throw new ApiError(0, "The driver could not be loaded. Please retry.");
   }
-  return ride;
+  return { ...ride, tracking: decodeTracking(ride.tracking) };
 }
 export const ridePlace = (p: Place) => ({
   name: p.name,

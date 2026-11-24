@@ -2,11 +2,16 @@ import { createElement, useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { Icon, ui } from "../../ui/components";
 import type { MapCanvasProps } from "./model";
+import { carSvg } from "./car-art";
+import { moveWebCar, type WebCar } from "./web-car";
+import { decodePolyline } from "../../api/ride-tracking";
 
 // Keep native map modules out of the browser bundle.
 export function MapCanvas({
   pickup,
   cars = [],
+  tracking,
+  trackingTarget,
   radiusMeters,
   destination,
   fullscreen = false,
@@ -16,6 +21,7 @@ export function MapCanvas({
 }: MapCanvasProps) {
   const host = useRef<HTMLDivElement | null>(null);
   const map = useRef<WebMap | null>(null);
+  const carMarkers = useRef(new Map<string, WebCar>());
   const [api, setApi] = useState<Maps | null>(null);
   const [failed, setFailed] = useState(false);
   const key = process.env.EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY;
@@ -38,6 +44,11 @@ export function MapCanvas({
       });
     return () => {
       alive = false;
+      for (const car of carMarkers.current.values()) {
+        if (car.frame !== undefined) cancelAnimationFrame(car.frame);
+        car.marker.setMap(null);
+      }
+      carMarkers.current.clear();
       map.current = null;
     };
   }, [key]);
@@ -66,23 +77,82 @@ export function MapCanvas({
           label: "D",
         }),
       );
-    for (const car of cars)
-      markers.push(
-        new api.Marker({
-          map: map.current,
-          position: point(car.location),
-          title:
-            car.id === "assigned-driver"
-              ? "Your driver’s live location"
-              : `Vooma ${car.category} · ${car.pickupSeconds === null ? `${(car.distanceMeters / 1000).toFixed(1)} km away` : `${Math.max(1, Math.ceil(car.pickupSeconds / 60))} min to pickup`}`,
-          label: "🚗",
-        }),
-      );
     return () => markers.forEach((marker) => marker.setMap(null));
-  }, [api, pickup, destination, cars]);
+  }, [
+    api,
+    pickup?.latitude,
+    pickup?.longitude,
+    pickup?.name,
+    destination?.latitude,
+    destination?.longitude,
+    destination?.name,
+  ]);
+  useEffect(() => {
+    if (!api || !map.current) return;
+    const ids = new Set(cars.map((car) => car.id));
+    for (const [id, car] of carMarkers.current)
+      if (!ids.has(id)) {
+        if (car.frame !== undefined) cancelAnimationFrame(car.frame);
+        car.marker.setMap(null);
+        carMarkers.current.delete(id);
+      }
+    for (const car of cars) {
+      let entry = carMarkers.current.get(car.id);
+      if (!entry) {
+        entry = {
+          marker: new api.Marker({
+            map: map.current,
+            title:
+              car.id === "assigned-driver"
+                ? "Your driver"
+                : `Vooma ${car.category}`,
+            zIndex: 100,
+          }),
+          icon: {
+            scaledSize: new api.Size(48, 48),
+            anchor: new api.Point(24, 24),
+          },
+        };
+        carMarkers.current.set(car.id, entry);
+      }
+      moveWebCar(
+        entry,
+        { lat: car.location.latitude, lng: car.location.longitude },
+        carSvg,
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      );
+    }
+  }, [api, cars]);
+  useEffect(() => {
+    if (!api || !map.current || !tracking) return;
+    const coordinates = decodePolyline(tracking.encodedPolyline);
+    if (!coordinates) return;
+    const line = new api.Polyline({
+      map: map.current,
+      path: coordinates.map((p) => ({ lat: p.latitude, lng: p.longitude })),
+      strokeColor: "#1879EB",
+      strokeWeight: 5,
+    });
+    return () => line.setMap(null);
+  }, [api, tracking?.encodedPolyline]);
+  const assigned = cars.find((car) => car.id === "assigned-driver");
+  const latestAssigned = useRef(assigned);
+  latestAssigned.current = assigned;
   useEffect(() => {
     if (!api || !map.current || !pickup) return;
     const origin = { lat: pickup.latitude, lng: pickup.longitude };
+    if (latestAssigned.current) {
+      const bounds = new api.LatLngBounds();
+      const driver = latestAssigned.current.location;
+      bounds.extend({ lat: driver.latitude, lng: driver.longitude });
+      bounds.extend(
+        trackingTarget === "destination" && destination
+          ? { lat: destination.latitude, lng: destination.longitude }
+          : origin,
+      );
+      map.current.fitBounds(bounds, 70);
+      return;
+    }
     if (destination) {
       const bounds = new api.LatLngBounds();
       bounds.extend(origin);
@@ -102,6 +172,8 @@ export function MapCanvas({
     destination?.longitude,
     recenter,
     radiusMeters,
+    assigned?.id,
+    trackingTarget,
   ]);
   if (key && !failed)
     return (
@@ -159,10 +231,13 @@ type WebMap = {
   setZoom: (zoom: number) => void;
   fitBounds: (bounds: unknown, padding: number) => void;
 };
-type WebMarker = { setMap: (map: WebMap | null) => void };
+type WebMarker = WebCar["marker"];
 type Maps = {
   Map: new (host: HTMLElement, options: object) => WebMap;
   Marker: new (options: object) => WebMarker;
+  Size: new (width: number, height: number) => object;
+  Point: new (x: number, y: number) => object;
+  Polyline: new (options: object) => { setMap: (map: null) => void };
   LatLngBounds: new () => { extend: (point: unknown) => void };
 };
 let pending: Promise<Maps> | null = null;

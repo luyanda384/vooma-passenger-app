@@ -6,7 +6,7 @@ test.each([
   ["android", false, { googleMapsAndroid: true }, "google"],
   ["android", false, {}, null],
   ["ios", true, { googleMapsAndroid: true, googleMapsIos: true }, "apple"],
-  ["ios", false, { googleMapsAndroid: true, googleMapsIos: true }, "apple"],
+  ["ios", false, { googleMapsAndroid: true, googleMapsIos: true }, "google"],
   ["ios", false, {}, "apple"],
 ] as const)(
   "selects the available provider for %s (Expo Go: %s, config: %j)",

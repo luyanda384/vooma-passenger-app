@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -8,14 +8,17 @@ import {
 } from "react-native";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import { isRunningInExpoGo } from "expo";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import { Button, Icon, c, ui } from "../../ui/components";
-import { services } from "../../domain/passenger";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import { Button, c, ui } from "../../ui/components";
+import { CarMarker } from "./CarMarker";
+import { decodePolyline } from "../../api/ride-tracking";
 import { nativeMapProvider, type MapCanvasProps } from "./model";
 
 export function MapCanvas({
   pickup,
   cars = [],
+  tracking,
+  trackingTarget,
   radiusMeters,
   destination,
   recenter,
@@ -25,6 +28,7 @@ export function MapCanvas({
   navigationInset = 0,
 }: MapCanvasProps) {
   const map = useRef<MapView>(null);
+  const [cameraHeading, setCameraHeading] = useState(0);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
@@ -44,6 +48,15 @@ export function MapCanvas({
     destination ?? { latitude: -26.2041, longitude: 28.0473 };
   const destinationLatitude = destination?.latitude;
   const destinationLongitude = destination?.longitude;
+  const encoded = tracking?.encodedPolyline;
+  const route = useMemo(
+    () => (encoded ? decodePolyline(encoded) : null),
+    [encoded],
+  );
+  const assigned = cars.find((car) => car.id === "assigned-driver");
+  const trackedId = assigned?.id;
+  const latestTracking = useRef({ assigned, route });
+  latestTracking.current = { assigned, route };
 
   useEffect(() => {
     if (status !== "loading" || !provider) return;
@@ -55,6 +68,20 @@ export function MapCanvas({
     if (status !== "ready" || pickupLatitude == null || pickupLongitude == null)
       return;
     const origin = { latitude: pickupLatitude, longitude: pickupLongitude };
+    if (latestTracking.current.assigned) {
+      const end =
+        trackingTarget === "destination" && destination ? destination : origin;
+      map.current?.fitToCoordinates(
+        provider === "google" && latestTracking.current.route
+          ? latestTracking.current.route
+          : [latestTracking.current.assigned.location, end],
+        {
+          edgePadding: { top: 65, right: 55, bottom: 85, left: 55 },
+          animated: true,
+        },
+      );
+      return;
+    }
     if (destinationLatitude != null && destinationLongitude != null) {
       map.current?.fitToCoordinates(
         [
@@ -99,6 +126,9 @@ export function MapCanvas({
     overlayBottom,
     height,
     radiusMeters,
+    trackedId,
+    trackingTarget,
+    provider,
   ]);
 
   return (
@@ -139,40 +169,30 @@ export function MapCanvas({
             left: 12,
           }}
           onMapReady={() => setStatus("ready")}
+          onRegionChangeComplete={() => {
+            if (provider === "apple")
+              void map.current
+                ?.getCamera?.()
+                .then((camera) => setCameraHeading(camera.heading))
+                .catch(() => {});
+          }}
         >
           {cars.map((car) => (
-            <Marker
+            <CarMarker
               key={car.id}
-              identifier={`car-${car.id}`}
-              coordinate={car.location}
-              title={
-                car.id === "assigned-driver"
-                  ? "Your driver"
-                  : (services.find((s) => s.id === car.category)?.name ??
-                    "Vooma")
-              }
-              description={
-                car.id === "assigned-driver"
-                  ? "Your driver’s live location"
-                  : car.pickupSeconds === null
-                    ? `${(car.distanceMeters / 1000).toFixed(1)} km away · ETA unavailable`
-                    : `${Math.max(1, Math.ceil(car.pickupSeconds / 60))} min to pickup`
-              }
-              accessibilityLabel={`Available ${car.category} car`}
-            >
-              <View
-                style={{
-                  padding: 5,
-                  borderRadius: 12,
-                  backgroundColor: "white",
-                  borderWidth: 1,
-                  borderColor: c.navy,
-                }}
-              >
-                <Icon name="car-sport" size={24} color={c.navy} />
-              </View>
-            </Marker>
+              car={car}
+              target={trackingTarget}
+              apple={provider === "apple"}
+              cameraHeading={cameraHeading}
+            />
           ))}
+          {provider === "google" && route && (
+            <Polyline
+              coordinates={route}
+              strokeColor="#1879EB"
+              strokeWidth={5}
+            />
+          )}
           {pickup && (
             <Marker
               identifier="pickup"

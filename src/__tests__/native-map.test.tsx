@@ -120,7 +120,7 @@ test.each(["android", "ios"] as const)(
     };
     render(<MapCanvas pickup={places[0]} recenter={0} />);
     expect(jest.mocked(MapView).mock.lastCall![0].provider).toBe(
-      os === "android" ? PROVIDER_GOOGLE : undefined,
+      PROVIDER_GOOGLE,
     );
   },
 );

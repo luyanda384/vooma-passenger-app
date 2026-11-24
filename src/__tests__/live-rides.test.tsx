@@ -26,6 +26,45 @@ const ride: LiveRide = {
   destination: places[1],
   driver: null,
 };
+test("ETA and GPS expire locally even when polling stops returning", async () => {
+  jest.useFakeTimers();
+  const now = Date.now();
+  const assigned: LiveRide = {
+    ...ride,
+    status: "matched",
+    driver: {
+      name: "Thabo",
+      vehicle: {
+        plate: "TEST GP",
+        colour: "White",
+        make: "Toyota",
+        model: "Corolla",
+      },
+      location: { latitude: -26.1, longitude: 28.05, capturedAt: now },
+    },
+    tracking: {
+      provider: "google",
+      target: "pickup",
+      origin: { latitude: -26.1, longitude: 28.05 },
+      distanceMeters: 1800,
+      durationSeconds: 240,
+      encodedPolyline: "_p~iF~ps|U_ulLnnqC_mqNvxq`@",
+      calculatedAt: now,
+      expiresAt: now + 30000,
+    },
+  };
+  jest
+    .mocked(ridesApi.current)
+    .mockResolvedValueOnce(assigned)
+    .mockImplementation(() => new Promise(() => {}));
+  const hook = renderHook(() => useRide());
+  await act(async () => {});
+  expect(hook.result.current.ride?.tracking?.durationSeconds).toBe(240);
+  await act(async () => jest.advanceTimersByTime(31000));
+  expect(hook.result.current.ride?.tracking).toBeNull();
+  expect(hook.result.current.ride?.driver?.location).toBeNull();
+  expect(hook.result.current.ride?.status).toBe("matched");
+});
 beforeEach(() => {
   Object.defineProperty(AppState, "currentState", {
     configurable: true,
