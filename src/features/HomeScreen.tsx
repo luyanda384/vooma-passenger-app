@@ -16,18 +16,22 @@ import { dashboardColors as c } from "../ui/theme";
 import { MapCanvas } from "./map/MapCanvas";
 import { PlacePicker } from "./PlacePicker";
 import { useLivePickup } from "../location/useLivePickup";
+import { ScreenHeader } from "../ui/ScreenHeader";
 
 export function HomeScreen({
   navigationInset = 0,
+  passengerName = "",
 }: {
   navigationInset?: number;
+  passengerName?: string;
 }) {
   const { height } = useWindowDimensions();
+  const firstName = passengerName.trim().split(/\s+/)[0];
   const [manualPickup, setManualPickup] = useState<Place | null>(null);
   const location = useLivePickup({ enabled: manualPickup === null });
   const pickup = manualPickup ?? location.pickup;
   const [viewportHeight, setViewportHeight] = useState(height - 140);
-  const [headerHeight, setHeaderHeight] = useState(88);
+  const [headerHeight, setHeaderHeight] = useState(230);
   const [searchHeight, setSearchHeight] = useState(60);
   const [destination, setDestination] = useState<Place | null>(null);
   const [picker, setPicker] = useState<"pickup" | "destination" | null>(null);
@@ -71,6 +75,10 @@ export function HomeScreen({
           style={styles.headingArea}
           onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
         >
+          <ScreenHeader
+            title={firstName ? `Hi, ${firstName}!` : "Welcome!"}
+            subtitle="Where are you going today?"
+          />
           <View style={styles.header}>
             <Pressable
               accessibilityRole="button"
@@ -108,10 +116,6 @@ export function HomeScreen({
               <Icon name="notifications" size={26} color={c.ink} />
             </Pressable>
           </View>
-
-          <Text accessibilityRole="header" style={styles.title}>
-            Where are you going today?
-          </Text>
         </View>
 
         <View style={styles.mapSection}>
@@ -245,13 +249,12 @@ export function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#EEF5FF" },
+  screen: { flex: 1, backgroundColor: c.tint },
   content: {
     width: "100%",
     maxWidth: 760,
     alignSelf: "center",
-    paddingHorizontal: 12,
-    paddingTop: 8,
+    paddingHorizontal: 14,
     paddingBottom: 12,
     gap: 12,
   },
@@ -277,14 +280,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  title: {
-    color: c.ink,
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: "800",
-    letterSpacing: -0.8,
-  },
-  mapSection: { gap: 0, marginHorizontal: -12 },
+  mapSection: { gap: 0, marginHorizontal: -14 },
   mapFrame: {
     borderRadius: 26,
     overflow: "hidden",

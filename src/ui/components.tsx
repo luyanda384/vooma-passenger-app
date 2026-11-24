@@ -93,11 +93,13 @@ export function Sheet({
   title,
   visible,
   onClose,
+  closeLabel,
   children,
 }: {
   title: string;
   visible: boolean;
   onClose: () => void;
+  closeLabel?: string;
   children: ReactNode;
 }) {
   return (
@@ -119,7 +121,7 @@ export function Sheet({
             </Text>
             <IconButton
               name="close"
-              label={`Close ${title}`}
+              label={closeLabel ?? `Close ${title}`}
               onPress={onClose}
             />
           </View>

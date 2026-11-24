@@ -1,3 +1,5 @@
+import { useLanguage } from "../i18n/LanguageProvider";
+import { LanguageChoice } from "../ui/LanguageChoice";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
 import {
   BackHandler,
@@ -12,7 +14,10 @@ import {
   useWindowDimensions,
   type TextInputProps,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { passengerApi, type Challenge } from "../api/passenger";
 import { useAuthRequest } from "../api/useAuthRequest";
@@ -77,7 +82,10 @@ export function SignUpScreen({
   onBack: () => void;
   onSignIn: () => void;
 }) {
-  const { width } = useWindowDimensions();
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const compact = height - insets.top - insets.bottom < 650;
+  const { t } = useLanguage();
   const [form, setForm] = useState<Form>(emptyForm);
   const [errors, setErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [visible, setVisible] = useState({ password: false, confirm: false });
@@ -130,11 +138,23 @@ export function SignUpScreen({
       fields.current[first]?.focus();
       return;
     }
-    void request.run(signal => passengerApi.signup({ name: form.name, email: form.email.trim(), phone: form.phone, password: form.password }, signal), next => {
-      setForm(previous => ({ ...previous, password: "", confirm: "" }));
-      setVisible({ password: false, confirm: false });
-      setChallenge(next);
-    });
+    void request.run(
+      (signal) =>
+        passengerApi.signup(
+          {
+            name: form.name,
+            email: form.email.trim(),
+            phone: form.phone,
+            password: form.password,
+          },
+          signal,
+        ),
+      (next) => {
+        setForm((previous) => ({ ...previous, password: "", confirm: "" }));
+        setVisible({ password: false, confirm: false });
+        setChallenge(next);
+      },
+    );
   }
   function field(
     key: FieldName,
@@ -151,13 +171,11 @@ export function SignUpScreen({
             ref={(input) => {
               fields.current[key] = input;
             }}
-            accessibilityLabel={label}
+            accessibilityLabel={t(label)}
             accessibilityHint={
-              password
-                ? "Use 12 to 128 characters."
-                : undefined
+              password ? t("Use 12 to 128 characters.") : undefined
             }
-            placeholder={label}
+            placeholder={t(label)}
             placeholderTextColor={muted}
             value={form[key]}
             onChangeText={(value) => change(key, value)}
@@ -184,7 +202,9 @@ export function SignUpScreen({
           {password && (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`${visible[key] ? "Hide" : "Show"} ${key === "confirm" ? "confirm password" : "password"}`}
+              accessibilityLabel={t(
+                `${visible[key] ? "Hide" : "Show"} ${key === "confirm" ? "confirm password" : "password"}`,
+              )}
               onPress={() =>
                 setVisible((previous) => ({
                   ...previous,
@@ -203,14 +223,22 @@ export function SignUpScreen({
         </View>
         {errors[key] && (
           <Text accessibilityRole="alert" style={s.error}>
-            {errors[key]}
+            {t(errors[key]!)}
           </Text>
         )}
       </View>
     );
   }
 
-  if (challenge) return <VerifyEmailScreen initial={challenge} email={form.email.trim()} onBack={() => setChallenge(null)} onSignIn={onSignIn} />;
+  if (challenge)
+    return (
+      <VerifyEmailScreen
+        initial={challenge}
+        email={form.email.trim()}
+        onBack={() => setChallenge(null)}
+        onSignIn={onSignIn}
+      />
+    );
   return (
     <View style={s.root} testID="passenger-signup">
       <StatusBar style="dark" />
@@ -224,42 +252,47 @@ export function SignUpScreen({
             ref={scroll}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+            bounces={false}
             contentContainerStyle={s.content}
           >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Back to welcome"
-              onPress={onBack}
-              style={s.back}
-            >
-              <Icon name="arrow-back" size={29} color={ink} />
-            </Pressable>
-            <View style={s.heading}>
-              <Text
-                accessibilityRole="header"
-                style={[s.title, width < 360 && { fontSize: 30 }]}
+            <View style={s.topBar}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("Back to welcome")}
+                onPress={onBack}
+                style={s.back}
               >
-                Create Account
+                <Icon name="arrow-back" size={29} color={ink} />
+              </Pressable>
+              <Text accessibilityRole="header" style={s.title}>
+                {t("Create Account")}
               </Text>
-              <Text style={s.subtitle}>Join Vooma today</Text>
+            </View>
+            <View style={[s.languageRow, compact && { marginBottom: 6 }]}>
+              <Text style={s.subtitle}>{t("Join Vooma today")}</Text>
+              <LanguageChoice />
             </View>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Continue with Google"
+              accessibilityLabel={t("Continue with Google")}
               disabled={request.busy}
-              accessibilityState={{ disabled: request.busy, busy: request.busy }}
+              accessibilityState={{
+                disabled: request.busy,
+                busy: request.busy,
+              }}
               onPress={() => void request.run(google, () => {})}
               style={({ pressed }) => [s.google, pressed && { opacity: 0.7 }]}
             >
               <GoogleMark />
-              <Text style={s.googleText}>Continue with Google</Text>
+              <Text style={s.googleText}>{t("Continue with Google")}</Text>
             </Pressable>
-            <View style={s.separator}>
+            <View style={[s.separator, compact && { marginVertical: 3 }]}>
               <View style={s.line} />
-              <Text style={s.or}>or</Text>
+              <Text style={s.or}>{t("or")}</Text>
               <View style={s.line} />
             </View>
-            <View style={s.fields}>
+            <View style={[s.fields, compact && { gap: 6 }]}>
               {field("name", "Full Name", "person-outline", {
                 autoCapitalize: "words",
                 autoComplete: "name",
@@ -288,68 +321,82 @@ export function SignUpScreen({
             </View>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Create account"
+              accessibilityLabel={t("Create account")}
               disabled={request.busy}
-              accessibilityState={{ disabled: request.busy, busy: request.busy }}
+              accessibilityState={{
+                disabled: request.busy,
+                busy: request.busy,
+              }}
               onPress={submit}
-              style={({ pressed }) => [s.submit, pressed && { opacity: 0.8 }]}
+              style={({ pressed }) => [
+                s.submit,
+                compact && { marginTop: 10 },
+                pressed && { opacity: 0.8 },
+              ]}
             >
-              <Text style={s.submitText}>{request.busy ? "Creating account…" : "Create account"}</Text>
+              <Text style={s.submitText}>
+                {t(request.busy ? "Creating account…" : "Create account")}
+              </Text>
             </Pressable>
             {message !== "" && (
               <View style={s.message}>
                 <Notice>{message}</Notice>
               </View>
             )}
-            {request.error !== "" && <View style={s.message}><Notice error>{request.error}</Notice></View>}
+            {request.error !== "" && (
+              <View style={s.message}>
+                <Notice error>{t(request.error)}</Notice>
+              </View>
+            )}
             <View style={s.signInRow}>
-              <Text style={s.footerText}>Already have an account?</Text>
+              <Text style={s.footerText}>{t("Already have an account?")}</Text>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Sign in"
+                accessibilityLabel={t("Sign in")}
                 onPress={onSignIn}
                 style={s.footerLink}
               >
-                <Text style={s.link}>Sign in</Text>
+                <Text style={s.link}>{t("Sign in")}</Text>
               </Pressable>
             </View>
             <View style={s.terms}>
               <Text style={s.termsText}>
-                By creating an account, you agree to our
-              </Text>
-              <View style={s.termsLinks}>
-                <Pressable
-                  accessibilityRole="button"
+                {t("By creating an account, you agree to our")}{" "}
+                <Text
+                  accessibilityRole="link"
                   onPress={() => setPolicy("Terms & Conditions")}
-                  style={s.legalLink}
+                  style={s.legalText}
                 >
-                  <Text style={s.legalText}>Terms &amp; Conditions</Text>
-                </Pressable>
-                <Text style={s.termsText}>and</Text>
-                <Pressable
-                  accessibilityRole="button"
+                  {t("Terms & Conditions")}
+                </Text>{" "}
+                {t("and")}{" "}
+                <Text
+                  accessibilityRole="link"
                   onPress={() => setPolicy("Privacy Policy")}
-                  style={s.legalLink}
+                  style={s.legalText}
                 >
-                  <Text style={s.legalText}>Privacy Policy.</Text>
-                </Pressable>
-              </View>
+                  {t("Privacy Policy.")}
+                </Text>
+              </Text>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
       <Sheet
         visible={policy !== null}
-        title={policy ?? "Account information"}
+        title={t(policy ?? "Account information")}
+        closeLabel={t("Close")}
         onClose={() => setPolicy(null)}
       >
         <Text style={ui.body}>
-          {policy === "Terms & Conditions"
-            ? "Ride booking and payments are not available yet. Vooma’s full passenger terms have not yet been published here."
-            : "Creating an account sends your name, email, phone number and password to Vooma API. Profile details are encrypted and passwords are hashed on the server. Mobile session tokens are saved in secure device storage; web sessions stay in memory. Google sign-in uses Supabase and sends a verified identity token to Vooma API. Demo trip history is stored locally for your account. This describes the development build; Vooma’s full privacy policy has not yet been published here."}
+          {t(
+            policy === "Terms & Conditions"
+              ? "Ride booking and payments are not available yet. Vooma’s full passenger terms have not yet been published here."
+              : "Creating an account sends your name, email, phone number and password to Vooma API. Profile details are encrypted and passwords are hashed on the server. Mobile session tokens are saved in secure device storage; web sessions stay in memory. Google sign-in uses Supabase and sends a verified identity token to Vooma API. Demo trip history is stored locally for your account. This describes the development build; Vooma’s full privacy policy has not yet been published here.",
+          )}
         </Text>
         <Button
-          label="Back to Create Account"
+          label={t("Back to Create Account")}
           onPress={() => setPolicy(null)}
         />
       </Sheet>
@@ -360,27 +407,47 @@ export function SignUpScreen({
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#EFF6FF" },
   flex: { flex: 1 },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
   content: {
     flexGrow: 1,
     width: "100%",
     maxWidth: 500,
     alignSelf: "center",
-    paddingHorizontal: 26,
-    paddingTop: 16,
-    paddingBottom: 22,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
-  back: { width: 48, height: 48, justifyContent: "center", marginLeft: -5 },
-  heading: { marginTop: 15, marginBottom: 24, gap: 6 },
+  back: { width: 44, height: 44, justifyContent: "center", flexShrink: 0 },
   title: {
     color: ink,
-    fontSize: 34,
-    lineHeight: 43,
+    flex: 1,
+    minWidth: 0,
+    fontSize: 28,
+    lineHeight: 36,
     fontWeight: "800",
     letterSpacing: -0.9,
   },
-  subtitle: { color: ink, fontSize: 23, lineHeight: 30 },
+  languageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 12,
+  },
+  subtitle: {
+    flex: 1,
+    minWidth: 0,
+    color: muted,
+    fontSize: 16,
+    lineHeight: 22,
+  },
   google: {
-    minHeight: 56,
+    minHeight: 52,
     borderRadius: 18,
     backgroundColor: "#FFFFFFD9",
     borderWidth: 1,
@@ -390,7 +457,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     gap: 16,
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 10,
     boxShadow: "0 3px 10px rgba(85, 133, 191, 0.1)",
   },
   googleText: { color: ink, fontSize: 17, fontWeight: "700", flexShrink: 1 },
@@ -399,22 +466,22 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 17,
     paddingHorizontal: 13,
-    marginVertical: 17,
+    marginVertical: 4,
   },
   line: { flex: 1, height: 1.5, backgroundColor: "#C6DCF5" },
-  or: { color: "#587093", fontSize: 17 },
-  fields: { gap: 10 },
+  or: { color: "#587093", fontSize: 14, lineHeight: 20 },
+  fields: { gap: 8 },
   fieldGroup: { gap: 5 },
   field: {
     minHeight: 54,
-    borderRadius: 18,
-    backgroundColor: "#FFFFFFBB",
+    borderRadius: 16,
+    backgroundColor: "#FFFFFFE6",
     borderWidth: 1,
     borderColor: "#E2ECFA",
     flexDirection: "row",
     alignItems: "center",
-    gap: 13,
-    paddingLeft: 17,
+    gap: 10,
+    paddingLeft: 16,
     paddingRight: 7,
     boxShadow: "0 3px 8px rgba(85, 133, 191, 0.07)",
   },
@@ -423,14 +490,14 @@ const s = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     minHeight: 52,
-    paddingVertical: 13,
+    paddingVertical: 12,
     color: ink,
     fontSize: 17,
     outlineWidth: 0,
   },
   eye: {
     width: 44,
-    minHeight: 48,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -441,15 +508,15 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
   },
   submit: {
-    minHeight: 56,
+    minHeight: 54,
     borderRadius: 30,
     backgroundColor: "#0D2D4D",
     alignItems: "center",
     justifyContent: "center",
-    padding: 13,
-    marginTop: 25,
+    padding: 12,
+    marginTop: 14,
   },
-  submitText: { fontSize: 21, fontWeight: "700", color: "#FFFFFF" },
+  submitText: { fontSize: 19, fontWeight: "700", color: "#FFFFFF" },
   message: { marginTop: 12 },
   signInRow: {
     flexDirection: "row",
@@ -457,25 +524,17 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
-    marginTop: 8,
+    marginTop: 4,
   },
   footerText: { color: "#587093", fontSize: 15, lineHeight: 22 },
   footerLink: { minHeight: 44, justifyContent: "center", paddingHorizontal: 2 },
   link: { color: "#0758F9", fontWeight: "700", fontSize: 16 },
-  terms: { alignItems: "center", marginTop: 20 },
+  terms: { alignItems: "center", marginTop: 8 },
   termsText: {
     color: "#587093",
     fontSize: 13,
-    lineHeight: 21,
+    lineHeight: 18,
     textAlign: "center",
   },
-  termsLinks: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "center",
-    columnGap: 4,
-  },
-  legalLink: { minHeight: 36, justifyContent: "center" },
   legalText: { color: "#0758F9", fontSize: 13, fontWeight: "700" },
 });

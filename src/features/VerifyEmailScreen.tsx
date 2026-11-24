@@ -1,3 +1,5 @@
+import { useLanguage } from "../i18n/LanguageProvider";
+import { LanguageChoice } from "../ui/LanguageChoice";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
 import {
   ActivityIndicator,
@@ -33,6 +35,7 @@ export function VerifyEmailScreen({
   onSignIn: () => void;
 }) {
   const [challenge, setChallenge] = useState(initial);
+  const { t } = useLanguage();
   const [code, setCode] = useState("");
   const [now, setNow] = useState(Date.now());
   const [invalid, setInvalid] = useState(false);
@@ -112,23 +115,26 @@ export function VerifyEmailScreen({
               compact && { paddingHorizontal: 20 },
             ]}
           >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Back to Create Account"
-              onPress={onBack}
-              style={s.back}
-            >
-              <Icon name="arrow-back" size={28} color={c.ink} />
-            </Pressable>
+            <View style={s.topBar}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("Back to Create Account")}
+                onPress={onBack}
+                style={s.back}
+              >
+                <Icon name="arrow-back" size={28} color={c.ink} />
+              </Pressable>
+              <LanguageChoice />
+            </View>
             <View style={[s.heading, compact && { marginTop: 18 }]}>
               <Text
                 accessibilityRole="header"
                 style={[s.title, compact && { fontSize: 28, lineHeight: 35 }]}
               >
-                Verify your account
+                {t("Verify your account")}
               </Text>
               <Text style={s.subtitle}>
-                Enter the 6-digit code sent to your email.
+                {t("Enter the 6-digit code sent to your email.")}
               </Text>
               <Text style={s.email}>{email}</Text>
             </View>
@@ -166,8 +172,10 @@ export function VerifyEmailScreen({
               {/* One native field preserves full-code paste, backspace and OTP autofill. */}
               <TextInput
                 ref={input}
-                accessibilityLabel="Verification code"
-                accessibilityHint="Enter the six-digit code from your email"
+                accessibilityLabel={t("Verification code")}
+                accessibilityHint={t(
+                  "Enter the six-digit code from your email",
+                )}
                 keyboardType="number-pad"
                 autoComplete="one-time-code"
                 textContentType="oneTimeCode"
@@ -191,19 +199,24 @@ export function VerifyEmailScreen({
 
             <View style={s.feedback}>
               {invalid && (
-                <Notice error>Enter the six-digit code from your email.</Notice>
+                <Notice error>
+                  {t("Enter the six-digit code from your email.")}
+                </Notice>
               )}
-              {request.error !== "" && <Notice error>{request.error}</Notice>}
+              {request.error !== "" && (
+                <Notice error>{t(request.error)}</Notice>
+              )}
               {expired && (
                 <Notice error>
-                  This code has expired. Go back to Create Account to request a
-                  new one.
+                  {t(
+                    "This code has expired. Go back to Create Account to request a new one.",
+                  )}
                 </Notice>
               )}
             </View>
 
             <View style={s.resendRow}>
-              <Text style={s.resendPrompt}>Didn’t receive it?</Text>
+              <Text style={s.resendPrompt}>{t("Didn’t receive it?")}</Text>
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ disabled: resendDisabled }}
@@ -212,7 +225,7 @@ export function VerifyEmailScreen({
                 style={s.textButton}
               >
                 <Text style={[s.link, resendDisabled && { opacity: 0.55 }]}>
-                  Resend code
+                  {t("Resend code")}
                 </Text>
               </Pressable>
             </View>
@@ -222,11 +235,11 @@ export function VerifyEmailScreen({
                 <Text style={s.timerText}>
                   {wait > 0 ? (
                     <>
-                      You can request a new code in{" "}
+                      {t("You can request a new code in")}{" "}
                       <Text style={s.timerValue}>{countdown}</Text>
                     </>
                   ) : (
-                    "You can request a new code now"
+                    t("You can request a new code now")
                   )}
                 </Text>
               </View>
@@ -235,7 +248,7 @@ export function VerifyEmailScreen({
             <View style={s.footer}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Verify & Continue"
+                accessibilityLabel={t("Verify & Continue")}
                 accessibilityState={{
                   disabled: request.busy || expired,
                   busy: request.busy,
@@ -250,7 +263,7 @@ export function VerifyEmailScreen({
               >
                 {request.busy && <ActivityIndicator color="#FFFFFF" />}
                 <Text style={s.verifyLabel}>
-                  {request.busy ? "Please wait…" : "Verify & Continue"}
+                  {t(request.busy ? "Please wait…" : "Verify & Continue")}
                 </Text>
               </Pressable>
               <Pressable
@@ -258,17 +271,17 @@ export function VerifyEmailScreen({
                 onPress={onBack}
                 style={s.changeEmail}
               >
-                <Text style={s.link}>Use a different email</Text>
+                <Text style={s.link}>{t("Use a different email")}</Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Sign in"
+                accessibilityLabel={t("Sign in")}
                 onPress={onSignIn}
                 style={s.textButton}
               >
                 <Text style={s.signIn}>
-                  Already have an account?{" "}
-                  <Text style={s.signInLink}>Sign in</Text>
+                  {t("Already have an account?")}{" "}
+                  <Text style={s.signInLink}>{t("Sign in")}</Text>
                 </Text>
               </Pressable>
             </View>
@@ -280,6 +293,12 @@ export function VerifyEmailScreen({
 }
 
 const s = StyleSheet.create({
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   root: { flex: 1, backgroundColor: "#EDF5FF" },
   flex: { flex: 1 },
   content: {

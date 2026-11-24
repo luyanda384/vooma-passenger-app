@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import * as SplashScreen from "expo-splash-screen";
 import { dashboardColors } from "./src/ui/theme";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Logo } from "./src/brand/Logo";
@@ -23,6 +24,7 @@ import { CompleteProfileScreen } from "./src/features/CompleteProfileScreen";
 import { PassengerProvider, usePassenger } from "./src/state/PassengerProvider";
 import { STORAGE_KEY } from "./src/state/PassengerProvider";
 import { AuthProvider, useAuth } from "./src/state/AuthProvider";
+import { LanguageProvider } from "./src/i18n/LanguageProvider";
 import {
   Button,
   c,
@@ -171,7 +173,10 @@ function PassengerApp() {
               <Button label="Retry saving" secondary onPress={retry} />
             </View>
           )}
-          <HomeScreen navigationInset={wide ? 0 : navigationHeight} />
+          <HomeScreen
+            navigationInset={wide ? 0 : navigationHeight}
+            passengerName={session.passenger.name}
+          />
         </View>
       ) : (
         <ScrollView
@@ -206,7 +211,19 @@ function PassengerApp() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider><AccountApp /></AuthProvider>
+      <View
+        testID="app-root"
+        style={styles.root}
+        onLayout={() => {
+          void SplashScreen.hideAsync().catch(() => {});
+        }}
+      >
+        <LanguageProvider>
+          <AuthProvider>
+            <AccountApp />
+          </AuthProvider>
+        </LanguageProvider>
+      </View>
     </SafeAreaProvider>
   );
 }

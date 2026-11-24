@@ -2,6 +2,10 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { VerifyEmailScreen } from "../features/VerifyEmailScreen";
 import { passengerApi, type Challenge } from "../api/passenger";
 
+jest.mock("@react-native-async-storage/async-storage", () =>
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
+);
+
 const mockAccept = jest.fn(async () => {});
 jest.mock("../state/AuthProvider", () => ({
   useAuth: () => ({ accept: mockAccept }),
