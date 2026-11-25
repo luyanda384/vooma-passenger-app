@@ -143,7 +143,7 @@ export function HomeScreen({
                   {manualPickup
                     ? manualPickup.address
                     : pickup
-                      ? "Live pickup · updates as you move"
+                      ? pickup.address || location.message
                       : "Pickup uses your live location"}
                 </Text>
               </View>
@@ -298,15 +298,19 @@ export function HomeScreen({
                 label={`Request ${selectedCategory === "go" ? "Vooma Go" : selectedCategory === "xl" ? "Vooma XL" : "Vooma Comfort"}`}
                 busy={trip.busy}
                 disabled={
-                  !trip.ready || !!trip.error || selectedAvailability < 1
+                  !trip.ready || !!trip.error || selectedAvailability < 1 || !pickup?.address.trim()
                 }
                 onPress={() => {
-                  if (pickup && destination)
-                    trip.request(pickup, destination, selectedCategory);
+                  const confirmedPickup = manualPickup ?? location.getPickup();
+                  if (confirmedPickup?.address.trim() && destination)
+                    trip.request(confirmedPickup, destination, selectedCategory);
                 }}
               />
               {!trip.ready && (
                 <Text style={ui.small}>Checking your current ride…</Text>
+              )}
+              {pickup && !pickup.address.trim() && (
+                <Text accessibilityLiveRegion="polite" style={ui.small}>{location.message}</Text>
               )}
               <Text style={ui.small}>
                 Your request is confirmed when a driver accepts. Payments are

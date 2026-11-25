@@ -5,6 +5,8 @@ import {
   type LocationStatus,
 } from "./controller";
 import { useLocation } from "./useLocation";
+import { usePickupAddress } from "./usePickupAddress";
+import { Platform } from "react-native";
 
 export function pickupFromLocation(state: LocationState): Place | null {
   if (
@@ -17,7 +19,7 @@ export function pickupFromLocation(state: LocationState): Place | null {
   return {
     id: "current-location",
     name: "Current location",
-    address: `${latitude!.toFixed(5)}, ${longitude!.toFixed(5)}`,
+    address: "",
     latitude: latitude!,
     longitude: longitude!,
   };
@@ -42,11 +44,25 @@ const messages: Record<LocationStatus, string> = {
 
 export function useLivePickup({ enabled = true } = {}) {
   const location = useLocation({ autoStart: enabled });
+  const point = pickupFromLocation(location);
+  const address = usePickupAddress(point ? [point.longitude, point.latitude] : null);
+  function addressed(pickup: Place | null) {
+    // Never attach an address from an earlier GPS area to a newer pickup.
+    const nearby = point && pickup && Math.hypot(
+      (point.longitude - pickup.longitude) * Math.cos(point.latitude * Math.PI / 180),
+      point.latitude - pickup.latitude,
+    ) * 111320 < 30;
+    return pickup ? { ...pickup, address: nearby ? address || "" : "" } : null;
+  }
   return {
-    pickup: pickupFromLocation(location),
+    pickup: addressed(point),
     status: location.status,
-    message: messages[location.status],
+    message: point && !address
+      ? Platform.OS === "web" || address === ""
+        ? "Choose your pickup street address using Change pickup."
+        : "Finding your pickup street address…"
+      : messages[location.status],
     retry: location.start,
-    getPickup: () => pickupFromLocation(location.getSnapshot()),
+    getPickup: () => addressed(pickupFromLocation(location.getSnapshot())),
   };
 }
